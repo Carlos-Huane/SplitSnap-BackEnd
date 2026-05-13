@@ -197,26 +197,18 @@ Verás la documentación interactiva con todos los endpoints. Para probar:
 
 ## Script de inicio rápido (para las siguientes veces)
 
-Guarda esto como `iniciar.bat` en la carpeta del proyecto:
+El archivo `iniciar.bat` ya está en la raíz del proyecto. Solo debes:
 
-```bat
-@echo off
-set DB_URL=jdbc:postgresql://localhost:5432/splitsnap_db
-set DB_USERNAME=postgres
-set DB_PASSWORD=CAMBIA_ESTO
-set JWT_SECRET=splitsnap_clave_secreta_2026_desarrollo
+1. Abrirlo con un editor de texto (clic derecho → Editar)
+2. Cambiar `CAMBIA_ESTO` por tu contraseña de PostgreSQL
+3. Guardarlo
 
-echo Compilando...
-mvn package -DskipTests
+> ⚠️ **No hagas doble clic** — la carpeta tiene caracteres especiales que CMD no maneja bien así. Siempre ejecútalo desde CMD:
 
-echo Copiando JAR...
-copy target\splitsnap-backend-0.0.1-SNAPSHOT.jar %USERPROFILE%\Desktop\splitsnap.jar
-
-echo Iniciando servidor...
-java -jar %USERPROFILE%\Desktop\splitsnap.jar
 ```
-
-> Edita `CAMBIA_ESTO` con tu contraseña de PostgreSQL. La próxima vez solo ejecutas `iniciar.bat` y listo.
+cd "C:\Users\TU_USUARIO\Desktop\hsproyect\🎓 UNIVERSIDAD\Herramientas de desarrollo\SplitSnap-BackEnd"
+iniciar.bat
+```
 
 ---
 

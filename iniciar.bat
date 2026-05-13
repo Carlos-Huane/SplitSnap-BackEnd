@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0" 2>nul || (echo ERROR: No se pudo acceder a la carpeta del proyecto. && echo Ejecuta este archivo desde CMD, no con doble clic. && pause && exit /b 1)
 echo ================================
 echo   SplitSnap Backend - Inicio
 echo ================================
