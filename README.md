@@ -41,42 +41,46 @@ No necesitas crear las tablas manualmente. Spring Boot las genera automáticamen
 
 ---
 
-## 3. Configurar variables de entorno
+## 3. Configurar variables de entorno (método VS Code — recomendado)
 
-Crea un archivo `.env` en la raíz del proyecto (ya está en `.gitignore`, nunca lo subas):
+El proyecto incluye `.vscode/launch.json.example`. Cópialo y renómbralo:
 
-```env
-DB_URL=jdbc:postgresql://localhost:5432/splitsnap_db
-DB_USERNAME=postgres
-DB_PASSWORD=tu_contraseña_postgres
-JWT_SECRET=cualquier_texto_largo_secreto_minimo_32_caracteres
+```
+cp .vscode/launch.json.example .vscode/launch.json
 ```
 
-Reemplaza `tu_contraseña_postgres` con la contraseña que pusiste al instalar PostgreSQL.
+Abre `.vscode/launch.json` y reemplaza `TU_PASSWORD_POSTGRES_AQUI` con tu contraseña de PostgreSQL. Este archivo está en `.gitignore`, así que no lo vas a subir accidentalmente.
 
-### Alternativa — pasar las variables al correr Maven
+> Instala las extensiones **Extension Pack for Java** y **Spring Boot Extension Pack** en VS Code (búscalas en `Ctrl+Shift+X`).
 
-Si prefieres no crear el archivo `.env`, puedes pasar las variables directo:
+### Alternativa — variables por CMD
 
-```bash
-DB_URL=jdbc:postgresql://localhost:5432/splitsnap_db \
-DB_USERNAME=postgres \
-DB_PASSWORD=tu_password \
-JWT_SECRET=mi_secreto_largo \
-mvn spring-boot:run
+Si prefieres no usar VS Code, en CMD ejecuta primero:
+
 ```
+set DB_URL=jdbc:postgresql://localhost:5432/splitsnap_db
+set DB_USERNAME=postgres
+set DB_PASSWORD=tu_password_postgres
+set JWT_SECRET=splitsnap_clave_secreta_2026_desarrollo
+```
+
+Estas variables solo duran mientras esa ventana de CMD esté abierta.
 
 ---
 
 ## 4. Levantar el servidor
 
-```bash
+### Con VS Code (recomendado)
+
+Presiona `F5` o usa el **Spring Boot Dashboard** (pestaña con ícono de hoja verde) → botón ▶ junto a `splitsnap-backend`.
+
+### Con CMD
+
+```
 mvn spring-boot:run
 ```
 
-La primera vez Maven descarga las dependencias (puede tardar 2-3 minutos). Las siguientes veces arranca en segundos.
-
-Verás en la consola algo como:
+En ambos casos verás:
 
 ```
 Started SplitSnapApplication in 3.2 seconds
@@ -84,6 +88,8 @@ Tomcat started on port 8080
 ```
 
 El servidor queda corriendo en `http://localhost:8080`.
+
+> ⚠️ Si clonaste el proyecto en una ruta con caracteres especiales (emojis, tildes, espacios) y usas CMD, el JAR puede fallar. Consulta `docs/SETUP-LOCAL.md` para el workaround.
 
 ---
 

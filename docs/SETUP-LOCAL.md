@@ -118,11 +118,14 @@ CREATE DATABASE splitsnap_db;
 
 ## PASO 6 — Clonar el repositorio
 
-Abre **CMD** (no PowerShell, para evitar problemas de sintaxis):
+Abre **CMD** (no PowerShell, para evitar problemas de sintaxis) y ejecuta:
 ```
-git clone https://github.com/Carlos-Huane/SplitSnap-.git
-cd SplitSnap-BackEnd
+git clone https://github.com/Carlos-Huane/SplitSnap-BackEnd.git
 ```
+
+Esto crea una carpeta `SplitSnap-BackEnd` donde ejecutaste el comando. Puedes clonar en cualquier carpeta de tu preferencia, por ejemplo en el escritorio o en `Documentos`.
+
+> ⚠️ **Evita clonar en rutas con caracteres especiales** (emojis, tildes, paréntesis, espacios) — Java puede fallar al compilar o ejecutar el JAR desde esas rutas. Usa rutas simples como `C:\Users\TU_USUARIO\Desktop\SplitSnap-BackEnd`.
 
 ---
 
@@ -142,15 +145,21 @@ set JWT_SECRET=splitsnap_clave_secreta_2026_desarrollo
 
 ## PASO 8 — Compilar y ejecutar
 
+> **Método recomendado: usar VS Code con Spring Boot Dashboard** (ver sección "Inicio rápido con VS Code" al final de este documento). Si usas ese método, salta al Paso 9 directamente.
+
+El método por CMD es alternativo, por si no tienes VS Code o prefieres la terminal.
+
 ### 8.1 Compilar el proyecto
 ```
 mvn package -DskipTests
 ```
 La primera vez descarga dependencias (puede tardar 2-3 minutos). Al final debe decir `BUILD SUCCESS`.
 
-### 8.2 Copiar el JAR a una ruta sin caracteres especiales
+### 8.2 Copiar el JAR a tu escritorio
 
-> Este paso es necesario porque la carpeta del proyecto tiene el emoji 🎓 en la ruta, lo que causa errores en Java.
+> ⚠️ Si la ruta donde clonaste el proyecto contiene espacios, tildes, emojis u otros caracteres especiales, Java falla al ejecutar el JAR desde esa carpeta. La solución es copiarlo al escritorio antes de correrlo.
+>
+> Si tu ruta **no** tiene caracteres especiales, puedes saltarte este paso y ejecutar directamente desde `target/`.
 
 ```
 copy target\splitsnap-backend-0.0.1-SNAPSHOT.jar %USERPROFILE%\Desktop\splitsnap.jar
@@ -160,6 +169,11 @@ copy target\splitsnap-backend-0.0.1-SNAPSHOT.jar %USERPROFILE%\Desktop\splitsnap
 ```
 java -jar %USERPROFILE%\Desktop\splitsnap.jar
 ```
+
+> Si no copiaste el JAR, ejecuta desde la carpeta del proyecto:
+> ```
+> java -jar target\splitsnap-backend-0.0.1-SNAPSHOT.jar
+> ```
 
 ### 8.4 Verificar que arrancó
 Cuando veas esto en la consola, el servidor está listo:
@@ -195,19 +209,39 @@ Verás la documentación interactiva con todos los endpoints. Para probar:
 
 ---
 
-## Script de inicio rápido (para las siguientes veces)
+## Inicio rápido con VS Code (recomendado)
 
-El archivo `iniciar.bat` ya está en la raíz del proyecto. Solo debes:
+Este es el método más fácil. No necesitas CMD ni variables de entorno manuales.
 
-1. Abrirlo con un editor de texto (clic derecho → Editar)
-2. Cambiar `CAMBIA_ESTO` por tu contraseña de PostgreSQL
-3. Guardarlo
+### Extensiones requeridas (instálalas una sola vez)
 
-> ⚠️ **No hagas doble clic** — la carpeta tiene caracteres especiales que CMD no maneja bien así. Siempre ejecútalo desde CMD:
+1. Abre VS Code
+2. Ve a la pestaña de Extensiones (ícono de cuadraditos a la izquierda, o `Ctrl+Shift+X`)
+3. Busca e instala:
+   - **Extension Pack for Java** — de Microsoft
+   - **Spring Boot Extension Pack** — de VMware
 
+### Configurar tu launch.json
+
+El archivo `.vscode/launch.json` está en `.gitignore` (cada uno tiene el suyo). Al clonar el repo, ese archivo no existe. Debes crearlo:
+
+1. En la raíz del proyecto clonado, busca la carpeta `.vscode/`
+2. Dentro hay un archivo `launch.json.example` — **cópialo** y renómbralo a `launch.json`
+3. Abre `launch.json` y reemplaza `TU_PASSWORD_POSTGRES_AQUI` por tu contraseña de PostgreSQL
+
+> ⚠️ No subas `launch.json` al repo — ya está en `.gitignore`.
+
+### Levantar el servidor
+
+Con las extensiones instaladas y el `launch.json` configurado:
+
+- Opción A: Presiona `F5` desde VS Code
+- Opción B: Abre la pestaña **Spring Boot Dashboard** (ícono de hoja verde en la barra lateral) → clic en el botón ▶ junto a `splitsnap-backend`
+
+Cuando veas esto en la consola, el servidor está listo:
 ```
-cd "C:\Users\TU_USUARIO\Desktop\hsproyect\🎓 UNIVERSIDAD\Herramientas de desarrollo\SplitSnap-BackEnd"
-iniciar.bat
+Started SplitSnapApplication in X.XXX seconds
+Tomcat started on port 8080
 ```
 
 ---
