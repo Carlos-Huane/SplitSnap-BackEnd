@@ -7,12 +7,7 @@
             "request": "launch",
             "mainClass": "com.splitsnap.SplitSnapApplication",
             "projectName": "splitsnap-backend",
-            "env": {
-                "DB_URL": "jdbc:postgresql://localhost:5432/splitsnap_db",
-                "DB_USERNAME": "postgres",
-                "DB_PASSWORD": "TU_PASSWORD_POSTGRES_AQUI",
-                "JWT_SECRET": "splitsnap_clave_secreta_2026_desarrollo"
-            }
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
