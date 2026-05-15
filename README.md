@@ -1,112 +1,122 @@
 # SplitSnap — Backend
 
 API REST para SplitSnap, app de gestión de gastos compartidos.  
-**Stack:** Java 17 · Spring Boot 3.2 · PostgreSQL · JWT · Swagger/OpenAPI 3
+**Stack:** Java 17 · Spring Boot 3.2 · MySQL · JWT · Swagger/OpenAPI 3
 
 ---
 
 ## Requisitos previos
 
-Instalar antes de empezar:
-
 | Herramienta | Versión mínima | Descarga |
-|-------------|---------------|----------|
+|-------------|----------------|----------|
 | Java JDK | 17 | https://adoptium.net |
 | Maven | 3.9+ | https://maven.apache.org |
-| PostgreSQL | 15+ | https://www.postgresql.org/download |
+| MySQL | 8.0+ | https://dev.mysql.com/downloads/installer |
 | Git | cualquiera | https://git-scm.com |
+| DBeaver (opcional) | cualquiera | https://dbeaver.io |
 
-> Puedes verificar las versiones con: `java -version`, `mvn -version`, `psql --version`
+> Verifica con: `java -version`, `mvn -version`
 
 ---
 
 ## 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Carlos-Huane/SplitSnap-.git
+git clone https://github.com/Carlos-Huane/SplitSnap-BackEnd.git
 cd SplitSnap-BackEnd
 ```
 
 ---
 
-## 2. Crear la base de datos en PostgreSQL
+## 2. Configurar credenciales locales
 
-Abre pgAdmin o la terminal de PostgreSQL y ejecuta:
+Las credenciales no están en el repo. Cada desarrollador crea su propio `.env`:
 
-```sql
-CREATE DATABASE splitsnap_db;
-```
+1. Copia `.env.example` → `.env`:
+   ```
+   copy .env.example .env
+   ```
+2. Abre el `.env` y reemplaza `TU_PASSWORD_DE_MYSQL` con tu contraseña de MySQL
 
-No necesitas crear las tablas manualmente. Spring Boot las genera automáticamente al levantar el servidor.
+> ⚠️ El `.env` está en `.gitignore` — nunca lo subas al repo.
 
 ---
 
-## 3. Configurar variables de entorno (método VS Code — recomendado)
+## 3. Configurar VS Code
 
-El proyecto incluye `.vscode/launch.json.example`. Cópialo y renómbralo:
-
-```
-cp .vscode/launch.json.example .vscode/launch.json
-```
-
-Abre `.vscode/launch.json` y reemplaza `TU_PASSWORD_POSTGRES_AQUI` con tu contraseña de PostgreSQL. Este archivo está en `.gitignore`, así que no lo vas a subir accidentalmente.
-
-> Instala las extensiones **Extension Pack for Java** y **Spring Boot Extension Pack** en VS Code (búscalas en `Ctrl+Shift+X`).
-
-### Alternativa — variables por CMD
-
-Si prefieres no usar VS Code, en CMD ejecuta primero:
-
-```
-set DB_URL=jdbc:postgresql://localhost:5432/splitsnap_db
-set DB_USERNAME=postgres
-set DB_PASSWORD=tu_password_postgres
-set JWT_SECRET=splitsnap_clave_secreta_2026_desarrollo
-```
-
-Estas variables solo duran mientras esa ventana de CMD esté abierta.
+1. Instala las extensiones **Extension Pack for Java** y **Spring Boot Extension Pack** (`Ctrl+Shift+X`)
+2. Copia `.vscode/launch.json.example` → `.vscode/launch.json`:
+   ```
+   copy .vscode\launch.json.example .vscode\launch.json
+   ```
+   No necesitas editar nada — ya apunta al `.env`.
 
 ---
 
 ## 4. Levantar el servidor
 
-### Con VS Code (recomendado)
+Presiona `F5` o usa el **Spring Boot Dashboard** → botón ▶ junto a `splitsnap-backend`.
 
-Presiona `F5` o usa el **Spring Boot Dashboard** (pestaña con ícono de hoja verde) → botón ▶ junto a `splitsnap-backend`.
-
-### Con CMD
+Cuando veas esto, el servidor está listo:
 
 ```
-mvn spring-boot:run
-```
-
-En ambos casos verás:
-
-```
-Started SplitSnapApplication in 3.2 seconds
+Started SplitSnapApplication in X.XXX seconds
 Tomcat started on port 8080
 ```
 
-El servidor queda corriendo en `http://localhost:8080`.
+El navegador se abre automáticamente en Swagger. Si no ocurre, entra a `http://localhost:8080/swagger-ui.html`.
 
-> ⚠️ Si clonaste el proyecto en una ruta con caracteres especiales (emojis, tildes, espacios) y usas CMD, el JAR puede fallar. Consulta `docs/SETUP-LOCAL.md` para el workaround.
+> La primera vez que arranca, Hibernate crea las tablas automáticamente y se insertan datos de prueba.
 
 ---
 
-## 5. Verificar que funciona
-
-Abre el navegador o Postman:
+## 3. Verificar con Swagger
 
 | URL | Qué muestra |
 |-----|-------------|
-| `http://localhost:8080/swagger-ui.html` | Documentación interactiva de todos los endpoints |
-| `http://localhost:8080/api-docs` | JSON de la API (OpenAPI 3) |
+| `http://localhost:8080/swagger-ui.html` | Documentación interactiva |
+| `http://localhost:8080/api-docs` | JSON OpenAPI 3 |
+
+---
+
+## 4. Datos de prueba
+
+Al arrancar por primera vez se crean estos registros:
+
+**Usuarios** (todos con password `test123`):
+
+| Nombre | Email |
+|--------|-------|
+| Carlos Huane | carlos@splitsnap.com |
+| Ana Torres | ana@splitsnap.com |
+| Juan Paredes | juan@splitsnap.com |
+
+**Grupos:**
+
+| Grupo | Creador | Miembros |
+|-------|---------|----------|
+| Viaje a Cusco 🏔️ | Carlos | Carlos, Ana, Juan |
+| Departamento 🏠 | Ana | Ana, Carlos |
+
+---
+
+## 5. Ver las tablas con DBeaver
+
+1. Abre DBeaver → clic en el enchufe con `+` → **New Database Connection**
+2. Selecciona **MySQL** → Next
+3. Completa:
+   - Server Host: `localhost`
+   - Port: `3306`
+   - Database: `splitsnap_db`
+   - Username: `root`
+   - Password: `admin`
+4. Clic en **Test Connection** (descarga el driver si te lo pide) → Finish
+
+Ya puedes ver las tablas `users`, `groups` y `group_members` con los datos iniciales.
 
 ---
 
 ## 6. Crear tu endpoint (flujo de trabajo)
-
-Cada historia de usuario es un commit. El flujo por cada endpoint nuevo:
 
 ### 6.1 Crear la rama desde develop
 
@@ -121,67 +131,24 @@ git checkout -b feature/nombre-de-tu-epica
 ```
 src/main/java/com/splitsnap/
 ├── model/          ← @Entity (tabla de BD)
-├── dto/            ← objetos de request y response (sin @Entity)
-├── repository/     ← interface que extiende JpaRepository
-├── service/        ← lógica de negocio (@Service)
-└── controller/     ← endpoints REST (@RestController)
+├── dto/            ← objetos de request y response
+├── repository/     ← interface JpaRepository
+├── service/        ← lógica de negocio
+└── controller/     ← endpoints REST
 ```
 
-### 6.3 Orden recomendado al crear un endpoint
+### 6.3 Orden recomendado
 
 ```
-1. model/MiEntidad.java        → @Entity con los campos de la BD
-2. dto/MiRequest.java          → lo que recibe el endpoint
-3. dto/MiResponse.java         → lo que devuelve el endpoint
-4. repository/MiRepository.java → interface JpaRepository<MiEntidad, UUID>
-5. service/MiService.java       → lógica (validaciones, cálculos)
-6. controller/MiController.java → @RestController con el @PostMapping/@GetMapping
+1. model/MiEntidad.java         → @Entity con los campos
+2. dto/MiRequest.java           → lo que recibe el endpoint
+3. dto/MiResponse.java          → lo que devuelve el endpoint
+4. repository/MiRepository.java → JpaRepository<MiEntidad, UUID>
+5. service/MiService.java       → validaciones y lógica
+6. controller/MiController.java → @RestController con los mappings
 ```
 
-### 6.4 Ejemplo mínimo
-
-```java
-// model/User.java
-@Entity @Table(name = "users")
-@Getter @Setter @NoArgsConstructor
-public class User {
-    @Id @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-    private String name;
-    private String email;
-}
-
-// repository/UserRepository.java
-public interface UserRepository extends JpaRepository<User, UUID> {
-    Optional<User> findByEmail(String email);
-}
-
-// service/UserService.java
-@Service @RequiredArgsConstructor
-public class UserService {
-    private final UserRepository userRepository;
-
-    public User findById(UUID id) {
-        return userRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
-    }
-}
-
-// controller/UserController.java
-@RestController
-@RequestMapping("/api/users")
-@RequiredArgsConstructor
-public class UserController {
-    private final UserService userService;
-
-    @GetMapping("/{id}")
-    public ResponseEntity<User> getUser(@PathVariable UUID id) {
-        return ResponseEntity.ok(userService.findById(id));
-    }
-}
-```
-
-### 6.5 Commit y PR
+### 6.4 Commit y PR
 
 ```bash
 git add .
@@ -189,7 +156,7 @@ git commit -m "feat: descripción de lo que hiciste"
 git push -u origin feature/nombre-de-tu-epica
 ```
 
-Luego crea el PR en GitHub: `feature/tu-rama` → `develop`.
+Crea el PR en GitHub: `feature/tu-rama` → `develop`.
 
 ---
 
@@ -198,24 +165,24 @@ Luego crea el PR en GitHub: `feature/tu-rama` → `develop`.
 ```
 splitsnap-backend/
 ├── docs/
-│   └── schema.sql              ← Esquema de referencia de la BD
+│   ├── schema.sql                  ← Esquema de referencia
+│   ├── SETUP-LOCAL.md              ← Guía de instalación detallada
+│   └── COMO-IMPLEMENTAR-ENDPOINT.md
 ├── src/
 │   ├── main/
 │   │   ├── java/com/splitsnap/
-│   │   │   ├── SplitSnapApplication.java
-│   │   │   ├── config/         ← CORS, Security, Swagger
-│   │   │   ├── controller/     ← Endpoints REST
-│   │   │   ├── dto/            ← Request y Response objects
-│   │   │   ├── exception/      ← Excepciones personalizadas
-│   │   │   ├── model/          ← Entidades JPA
-│   │   │   ├── repository/     ← Interfaces JpaRepository
-│   │   │   └── service/        ← Lógica de negocio
+│   │   │   ├── config/             ← CORS, Security, Swagger, DataInitializer
+│   │   │   ├── controller/
+│   │   │   ├── dto/
+│   │   │   ├── exception/
+│   │   │   ├── model/
+│   │   │   ├── repository/
+│   │   │   └── service/
 │   │   └── resources/
 │   │       └── application.properties
 │   └── test/
-│       ├── java/com/splitsnap/
 │       └── resources/
-│           └── application.properties  ← Usa H2 en memoria para tests
+│           └── application.properties  ← H2 en memoria para tests
 ├── pom.xml
 └── README.md
 ```
@@ -239,7 +206,6 @@ chore:    dependencias, configuración
 ```
 
 ### Errores — formato estándar
-Todos los errores devuelven este JSON:
 ```json
 {
   "status": 404,
