@@ -4,14 +4,18 @@ import com.splitsnap.dto.debt.DebtResponse;
 import com.splitsnap.dto.debt.MarkAsPaidRequest;
 import com.splitsnap.dto.debt.UserDebtInfoDTO;
 import com.splitsnap.exception.ResourceNotFoundException;
+import com.splitsnap.model.CreditTransaction;
 import com.splitsnap.model.Debt;
 import com.splitsnap.model.User;
+import com.splitsnap.repository.CreditTransactionRepository;
 import com.splitsnap.repository.DebtRepository;
 import com.splitsnap.repository.GroupRepository;
+import com.splitsnap.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -23,9 +27,18 @@ public class DebtService {
     private final DebtRepository debtRepository;
     private final GroupRepository groupRepository;
 
-    public DebtService(DebtRepository debtRepository, GroupRepository groupRepository) {
+    private final CreditTransactionRepository creditTransactionRepository;
+    private final UserRepository userRepository;
+
+    // Actualiza el constructor para incluirlos:
+    public DebtService(DebtRepository debtRepository,
+                       GroupRepository groupRepository,
+                       CreditTransactionRepository creditTransactionRepository,
+                       UserRepository userRepository) {
         this.debtRepository = debtRepository;
         this.groupRepository = groupRepository;
+        this.creditTransactionRepository = creditTransactionRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +93,56 @@ public class DebtService {
         debt.setPaidWith(request.getPaidWith());
 
         debtRepository.save(debt);
+        return convertToDebtResponse(debt);
+    }
+
+    @Transactional
+    public DebtResponse payDebtWithCredits(String groupId, String debtId, User currentUser) {
+        UUID groupUuid;
+        try {
+            groupUuid = UUID.fromString(groupId);
+        } catch (IllegalArgumentException e) {
+            throw new ResourceNotFoundException("Formato de ID de grupo inválido");
+        }
+        Debt debt = debtRepository.findByIdAndGroupId(debtId, groupUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Deuda no encontrada"));
+
+        // 2. Validaciones de negocio
+        if (!debt.getFromUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Solo el deudor puede pagar esta deuda");
+        }
+        if ("PAID".equals(debt.getStatus())) {
+            throw new IllegalStateException("Esta deuda ya ha sido pagada");
+        }
+
+        // 3. Convertir monto de deuda (asumiendo que es Double, lo convertimos a BigDecimal)
+        BigDecimal debtAmount = debt.getAmount();
+
+        // 4. Validar saldo (compareTo devuelve -1 si currentUser.getCredits() < debtAmount)
+        if (currentUser.getCredits().compareTo(debtAmount) < 0) {
+            throw new IllegalArgumentException("Créditos insuficientes");
+        }
+
+        // 5. Aplicar descuento
+        currentUser.setCredits(currentUser.getCredits().subtract(debtAmount));
+        userRepository.save(currentUser);
+
+        // 6. Actualizar Deuda
+        debt.setStatus("PAID");
+        debt.setPaidWith("credits");
+        debt.setPaidAt(LocalDateTime.now());
+        debtRepository.save(debt);
+
+        // 7. Registrar transacción
+        CreditTransaction tx = new CreditTransaction();
+        tx.setId(UUID.randomUUID().toString()); // UUID manual
+        tx.setUser(currentUser);
+        tx.setAmount(debtAmount.doubleValue());
+        tx.setType("SPEND");
+        tx.setDebtId(debt.getId());
+        tx.setCreatedAt(LocalDateTime.now());
+        creditTransactionRepository.save(tx);
+
         return convertToDebtResponse(debt);
     }
 
