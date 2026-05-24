@@ -1,6 +1,7 @@
 package com.splitsnap.controller;
 
 import com.splitsnap.dto.expense.CreateExpenseRequest;
+import com.splitsnap.dto.expense.ExpenseDetailResponse;
 import com.splitsnap.dto.expense.ExpenseResponse;
 import com.splitsnap.model.User;
 import com.splitsnap.service.ExpenseService;
@@ -43,4 +44,11 @@ public class ExpenseController {
         List<ExpenseResponse> expenses = expenseService.getExpensesByGroup(groupId);
         return ResponseEntity.ok(expenses);
     }
+
+    @GetMapping("/expenses/{expenseId}")
+    @Operation(summary = "Ver el detalle completo de un gasto y sus desgloses (SCRUM-99)")
+    public ResponseEntity<ExpenseDetailResponse> getExpenseDetails(@PathVariable UUID expenseId) {
+        ExpenseDetailResponse detail = expenseService.getExpenseDetails(expenseId);
+        return ResponseEntity.ok(detail);
+    }    
 }

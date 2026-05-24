@@ -1,6 +1,7 @@
 package com.splitsnap.service;
 
 import com.splitsnap.dto.expense.CreateExpenseRequest;
+import com.splitsnap.dto.expense.ExpenseDetailResponse;
 import com.splitsnap.dto.expense.ExpenseResponse;
 import com.splitsnap.exception.BusinessException;
 import com.splitsnap.model.Expense;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List; // <-- ¡AQUÍ ESTÁ LA IMPORTACIÓN QUE FALTABA!
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -109,4 +111,35 @@ public class ExpenseService {
                 .map(ExpenseResponse::from)
                 .collect(Collectors.toList());
     } 
+
+    
+    public ExpenseDetailResponse getExpenseDetails(UUID expenseId) {
+    // 1. Buscar el gasto o lanzar error si no existe
+    Expense expense = expenseRepository.findById(expenseId)
+            .orElseThrow(() -> new com.splitsnap.exception.BusinessException("El gasto solicitado no existe."));
+
+    // 2. Buscar los desgloses (splits) asociados a este gasto
+    List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
+
+    // 3. Mapear los desgloses a su sub-DTO correspondiente
+    List<ExpenseDetailResponse.SplitUserDetail> splitDetails = splits.stream()
+            .map(split -> ExpenseDetailResponse.SplitUserDetail.builder()
+                    .userId(split.getUser().getId())
+                    .userName(split.getUser().getName())
+                    .amount(split.getAmount())
+                    .build())
+            .collect(Collectors.toList());
+
+    // 4. Construir y retornar la respuesta detallada completa
+    return ExpenseDetailResponse.builder()
+            .id(expense.getId())
+            .description(expense.getDescription())
+            .amount(expense.getAmount())
+            .paidBy(expense.getPaidBy() != null ? expense.getPaidBy().getId() : null)
+            .paidByName(expense.getPaidBy() != null ? expense.getPaidBy().getName() : "Usuario Desconocido")
+            .expenseDate(expense.getExpenseDate() != null ? expense.getExpenseDate() : 
+                         (expense.getCreatedAt() != null ? expense.getCreatedAt().toLocalDate() : LocalDate.now()))
+            .splits(splitDetails)
+            .build();
+}
 }
