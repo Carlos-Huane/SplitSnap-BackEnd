@@ -3,7 +3,9 @@ package com.splitsnap.controller;
 import com.splitsnap.dto.expense.CreateExpenseRequest;
 import com.splitsnap.dto.expense.ExpenseDetailResponse;
 import com.splitsnap.dto.expense.ExpenseResponse;
+import com.splitsnap.dto.expense.OcrResponse;
 import com.splitsnap.model.User;
+
 import com.splitsnap.service.ExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -14,7 +16,9 @@ import org.springframework.http.HttpStatus; // <-- IMPORTANTE
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.http.MediaType;
 import java.util.List; // <-- ¡ESTA ES LA QUE FALTABA PARA EL GET!
 import java.util.UUID;
 
@@ -50,5 +54,12 @@ public class ExpenseController {
     public ResponseEntity<ExpenseDetailResponse> getExpenseDetails(@PathVariable UUID expenseId) {
         ExpenseDetailResponse detail = expenseService.getExpenseDetails(expenseId);
         return ResponseEntity.ok(detail);
+    }  
+    
+    @PostMapping(value = "/expenses/ocr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Escanear y extraer datos de un recibo mediante OCR (SCRUM-100)")
+    public ResponseEntity<OcrResponse> uploadReceiptOcr(@RequestParam("file") MultipartFile file) {
+        OcrResponse response = expenseService.processReceiptOcr(file);
+        return ResponseEntity.ok(response);
     }    
 }

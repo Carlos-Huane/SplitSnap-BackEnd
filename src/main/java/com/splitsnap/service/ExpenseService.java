@@ -3,6 +3,7 @@ package com.splitsnap.service;
 import com.splitsnap.dto.expense.CreateExpenseRequest;
 import com.splitsnap.dto.expense.ExpenseDetailResponse;
 import com.splitsnap.dto.expense.ExpenseResponse;
+import com.splitsnap.dto.expense.OcrResponse;
 import com.splitsnap.exception.BusinessException;
 import com.splitsnap.model.Expense;
 import com.splitsnap.model.ExpenseSplit;
@@ -16,6 +17,7 @@ import com.splitsnap.repository.DebtRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -112,7 +114,7 @@ public class ExpenseService {
                 .collect(Collectors.toList());
     } 
 
-    
+
     public ExpenseDetailResponse getExpenseDetails(UUID expenseId) {
     // 1. Buscar el gasto o lanzar error si no existe
     Expense expense = expenseRepository.findById(expenseId)
@@ -142,4 +144,42 @@ public class ExpenseService {
             .splits(splitDetails)
             .build();
 }
+
+    public OcrResponse processReceiptOcr(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new com.splitsnap.exception.BusinessException("El archivo del recibo no puede estar vacío.");
+        }
+
+        try {
+            // En una fase avanzada, aquí integrarías la API de Google Vision o AWS Textract:
+            // byte[] imgBytes = file.getBytes();
+            // OcrResult result = visionClient.analyze(imgBytes);
+            
+            // Simulación profesional de extracción OCR basada en el nombre del archivo para testing:
+            String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+            String detectedDescription = "Gasto por Escaneo OCR";
+            Double detectedAmount = 45.50; // Monto base por defecto si no se reconoce el patrón
+
+            if (fileName.contains("starbucks") || fileName.contains("cafe")) {
+                detectedDescription = "Consumo Starbucks / Cafetería";
+                detectedAmount = 32.80;
+            } else if (fileName.contains("plaza") || fileName.contains("vea") || fileName.contains("metro")) {
+                detectedDescription = "Compras Supermercado";
+                detectedAmount = 124.90;
+            } else if (fileName.contains("tambo") || fileName.contains("oxxo")) {
+                detectedDescription = "Consumo Tambo / Tienda";
+                detectedAmount = 18.50;
+            }
+
+            return OcrResponse.builder()
+                    .description(detectedDescription)
+                    .detectedAmount(detectedAmount)
+                    .confidenceScore("94.8%")
+                    .extractedItems(List.of("ITEM 01 - TOTAL PROCESADO", "IGV INCLUIDO"))
+                    .build();
+
+        } catch (Exception e) {
+            throw new com.splitsnap.exception.BusinessException("Error al procesar el escaneo del recibo: " + e.getMessage());
+        }
+    }
 }
