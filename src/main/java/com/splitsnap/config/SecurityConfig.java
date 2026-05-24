@@ -31,9 +31,9 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/api-docs/**",
-                                "/api/groups/**",
-                                "/api/credits/**",
-                                "/api/users/me/transactions"
+                                "/api/groups/**",               // Mantenemos tus rutas de desarrollo
+                                "/api/credits/**",              // Mantenemos tus rutas de desarrollo
+                                "/api/users/me/transactions"    // Mantenemos tus rutas de desarrollo
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
