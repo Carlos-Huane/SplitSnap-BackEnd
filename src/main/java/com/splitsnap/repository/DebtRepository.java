@@ -2,16 +2,19 @@ package com.splitsnap.repository;
 
 import com.splitsnap.model.Debt;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
 @Repository
 public interface DebtRepository extends JpaRepository<Debt, String> {
 
-    // Busca todas las deudas de un grupo específico sin importar el estado
-    List<Debt> findByGroupId(String groupId);
+    @Query("SELECT d FROM Debt d JOIN FETCH d.fromUser JOIN FETCH d.toUser WHERE d.group.id = :groupId")
+    List<Debt> findByGroupId(@Param("groupId") UUID groupId); // Cambiado a UUID
 
-    // Busca las deudas de un grupo filtradas rigurosamente por su estado (PENDING o PAID)
-    List<Debt> findByGroupIdAndStatus(String groupId, String status);
+    @Query("SELECT d FROM Debt d JOIN FETCH d.fromUser JOIN FETCH d.toUser WHERE d.group.id = :groupId AND d.status = :status")
+    List<Debt> findByGroupIdAndStatus(@Param("groupId") UUID groupId, @Param("status") String status);
 }

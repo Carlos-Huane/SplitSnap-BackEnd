@@ -27,25 +27,26 @@ public class DebtService {
 
     @Transactional(readOnly = true)
     public List<DebtResponse> getDebtsByGroup(String groupId, String status) {
+        // 1. Validar formato UUID
+        UUID groupUuid;
+        try {
+            groupUuid = UUID.fromString(groupId);
+        } catch (IllegalArgumentException e) {
+            throw new ResourceNotFoundException("El formato del ID de grupo es inválido.");
+        }
 
-        // 1. Convertir el String a UUID para que el repositorio no falle
-        UUID groupUuid = UUID.fromString(groupId);
-
-        // 2. Validar usando el UUID convertido
+        // 2. Verificar existencia usando el UUID
         if (!groupRepository.existsById(groupUuid)) {
             throw new ResourceNotFoundException("El grupo con ID '" + groupId + "' no existe.");
         }
 
         List<Debt> debts;
-
-        // 2. Buscar las deudas aplicando el filtro opcional de estado si viene informado
         if (status != null && !status.trim().isEmpty()) {
-            debts = debtRepository.findByGroupIdAndStatus(groupId, status.toUpperCase());
+            debts = debtRepository.findByGroupIdAndStatus(groupUuid, status.toUpperCase()); // Pasamos UUID
         } else {
-            debts = debtRepository.findByGroupId(groupId);
+            debts = debtRepository.findByGroupId(groupUuid); // Pasamos UUID
         }
 
-        // 3. Transformar la lista de entidades a DTOs de respuesta
         return debts.stream()
                 .map(this::convertToDebtResponse)
                 .collect(Collectors.toList());
