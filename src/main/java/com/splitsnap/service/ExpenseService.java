@@ -5,19 +5,21 @@ import com.splitsnap.dto.expense.ExpenseResponse;
 import com.splitsnap.exception.BusinessException;
 import com.splitsnap.model.Expense;
 import com.splitsnap.model.ExpenseSplit;
-import com.splitsnap.model.Debt; // IMPORTANTE: Agrega la entidad Debt
+import com.splitsnap.model.Debt;
 import com.splitsnap.model.Group;
 import com.splitsnap.model.User;
 import com.splitsnap.repository.ExpenseRepository;
 import com.splitsnap.repository.ExpenseSplitRepository;
 import com.splitsnap.repository.GroupMemberRepository;
-import com.splitsnap.repository.DebtRepository; // IMPORTANTE: Agrega el repositorio de Deudas
+import com.splitsnap.repository.DebtRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List; // <-- ¡AQUÍ ESTÁ LA IMPORTACIÓN QUE FALTABA!
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final GroupMemberRepository groupMemberRepository;
-    private final DebtRepository debtRepository; // INYECTADO para SCRUM-97
+    private final DebtRepository debtRepository;
     private final GroupService groupService;
     private final UserService userService;
 
@@ -79,19 +81,32 @@ public class ExpenseService {
             if (!member.getId().equals(authenticatedUser.getId())) {
                 Debt debt = new Debt();
                 
-                // Como tu entidad Debt maneja el ID como String (largo 36), generamos un UUID en texto
                 debt.setId(UUID.randomUUID().toString()); 
                 debt.setGroup(group);
-                debt.setExpenseId(savedExpense.getId().toString()); // Vinculamos la deuda a este gasto
-                debt.setFromUser(member);                            // El que debe (miembro del split)
-                debt.setToUser(authenticatedUser);                   // A quien le debe (el que pagó)
-                debt.setAmount(BigDecimal.valueOf(entry.getAmount())); // El monto asignado a ese miembro
-                debt.setStatus("PENDING");                           // Estado inicial por defecto
+                debt.setExpenseId(savedExpense.getId().toString()); 
+                debt.setFromUser(member);                            
+                debt.setToUser(authenticatedUser);                   
+                debt.setAmount(BigDecimal.valueOf(entry.getAmount())); 
+                debt.setStatus("PENDING");                           
 
                 debtRepository.save(debt);
             }
         }
 
         return ExpenseResponse.from(savedExpense);
-    }
+    } // <-- AQUÍ CIERRA CORRECTAMENTE createExpense
+
+    // ------ LOGICA SCRUM-98: LISTAR GASTOS DE UN GRUPO ------
+    public List<ExpenseResponse> getExpensesByGroup(UUID groupId) {
+        // 1. Validar que el grupo exista utilizando tu servicio existente
+        Group group = groupService.findById(groupId);
+
+        // 2. Buscar todos los gastos asociados a este grupo, ordenados por fecha de creación descendente
+        List<Expense> expenses = expenseRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
+
+        // 3. Transformar la lista de entidades a una lista de DTOs de respuesta
+        return expenses.stream()
+                .map(ExpenseResponse::from)
+                .collect(Collectors.toList());
+    } 
 }
