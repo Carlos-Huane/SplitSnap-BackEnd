@@ -1,8 +1,12 @@
 package com.splitsnap.controller;
 
 import com.splitsnap.dto.debt.DebtResponse;
+import com.splitsnap.dto.debt.MarkAsPaidRequest;
+import com.splitsnap.model.User;
 import com.splitsnap.service.DebtService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,6 +38,21 @@ public class DebtController {
             // ESTA LÍNEA ES LA MÁS IMPORTANTE
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error interno: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{groupId}/debts/{debtId}/mark-paid")
+    public ResponseEntity<?> markAsPaid(
+            @PathVariable String groupId,
+            @PathVariable String debtId,
+            @Valid @RequestBody MarkAsPaidRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        try {
+            return ResponseEntity.ok(debtService.markDebtAsPaid(groupId, debtId, request, currentUser));
+        } catch (Exception e) {
+            e.printStackTrace(); // <--- Esto obligará a que el error aparezca en consola
+            return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
         }
     }
 }

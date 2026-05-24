@@ -1,15 +1,18 @@
 package com.splitsnap.service;
 
 import com.splitsnap.dto.debt.DebtResponse;
+import com.splitsnap.dto.debt.MarkAsPaidRequest;
 import com.splitsnap.dto.debt.UserDebtInfoDTO;
 import com.splitsnap.exception.ResourceNotFoundException;
 import com.splitsnap.model.Debt;
 import com.splitsnap.model.User;
 import com.splitsnap.repository.DebtRepository;
 import com.splitsnap.repository.GroupRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -50,6 +53,34 @@ public class DebtService {
         return debts.stream()
                 .map(this::convertToDebtResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public DebtResponse markDebtAsPaid(String groupId, String debtId, MarkAsPaidRequest request, User currentUser) {
+        // 1. Convertir el groupId de String a UUID
+        UUID groupUuid;
+        try {
+            groupUuid = UUID.fromString(groupId);
+        } catch (IllegalArgumentException e) {
+            throw new ResourceNotFoundException("El formato del ID de grupo es inválido.");
+        }
+
+        // 2. Buscar la deuda usando el groupUuid convertido
+        Debt debt = debtRepository.findByIdAndGroupId(debtId, groupUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Deuda no encontrada en este grupo"));
+
+        // 3. Validación de seguridad
+        if (!debt.getFromUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Solo el deudor puede marcar esta deuda como pagada");
+        }
+
+        // 4. Actualizar estado
+        debt.setStatus("PAID");
+        debt.setPaidAt(LocalDateTime.now());
+        debt.setPaidWith(request.getPaidWith());
+
+        debtRepository.save(debt);
+        return convertToDebtResponse(debt);
     }
 
     // Método helper privado para transformar la entidad al DTO exacto requerido
