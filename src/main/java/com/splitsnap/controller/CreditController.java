@@ -27,4 +27,9 @@ public class CreditController {
         BigDecimal newBalance = creditService.buyCredits(currentUser, request);
         return ResponseEntity.ok(Map.of("message", "Compra exitosa", "newBalance", newBalance));
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCreditInfo(@AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(creditService.getCreditInfo(currentUser));
+    }
 }
