@@ -3,33 +3,42 @@ package com.splitsnap.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "expenses")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter 
+@Setter 
+@NoArgsConstructor 
+@AllArgsConstructor 
+@Builder
 public class Expense {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+
+    private String id;
 
     @Column(nullable = false)
     private String description;
 
     @Column(nullable = false)
-    private Double amount;
+    // Cambiado a BigDecimal 
+    private BigDecimal amount;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "group_id", nullable = false)
     private Group group;
 
-    // EL QUE PAGÓ: Mapeo de la columna paid_by apuntando a la entidad User
+    // === TU LÓGICA (SCRUM-96/97): El usuario que puso la plata ===
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "paid_by", nullable = false)
     private User paidBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     @Column(name = "expense_date", nullable = false)
     @Builder.Default
@@ -42,4 +51,9 @@ public class Expense {
     @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    // === MÉTODOS DE COMPATIBILIDAD (Para no romper tus métodos Double) ===
+    public Double getAmountAsDouble() {
+        return amount != null ? amount.doubleValue() : 0.0;
+    }
 }

@@ -26,39 +26,39 @@ public class TransactionService {
         UUID userId = user.getId();
         UUID groupUuid = (groupId != null) ? UUID.fromString(groupId) : null;
 
-        // 1. Obtener gastos (Expenses)
+        // 1. Obtener gastos (Expenses) utilizando los métodos de tu repositorio
         if (type == null || "expense".equals(type)) {
             List<Expense> expenses = (groupUuid != null)
                     ? expenseRepository.findByPaidByIdAndGroupId(userId, groupUuid)
                     : expenseRepository.findByPaidById(userId);
 
-            list.addAll(expenses.stream().map(e -> new TransactionHistoryDTO(
-                    e.getId(),
-                    "EXPENSE",
-                    e.getDescription(),
-                    e.getGroup() != null ? e.getGroup().getName() : "Sin Grupo",
-                    e.getAmount(), 
-                    e.getCreatedAt()
-            )).collect(Collectors.toList()));
+            list.addAll(expenses.stream().map(e -> TransactionHistoryDTO.builder()
+                    .id(e.getId()) // Pasa directo como String
+                    .type("EXPENSE")
+                    .description(e.getDescription())
+                    .groupName(e.getGroup() != null ? e.getGroup().getName() : "Sin Grupo")
+                    .amount(e.getAmount() != null ? e.getAmount().doubleValue() : 0.0) // CORREGIDO: .doubleValue() para BigDecimal
+                    .date(e.getCreatedAt())
+                    .build()).collect(Collectors.toList()));
         }
 
-        // 2. Obtener pagos (Deudas PAID)
+        // 2. Obtener pagos (Deudas PAID) con mapeos y conversiones seguras
         if (type == null || "payment".equals(type)) {
             List<Debt> payments = (groupUuid != null)
                     ? debtRepository.findPaidByUserIdAndGroupId(userId, groupUuid)
                     : debtRepository.findPaidByUserId(userId);
 
-            list.addAll(payments.stream().map(d -> new TransactionHistoryDTO(
-                    d.getId() != null ? UUID.fromString(d.getId()) : null, // CORREGIDO: Conversión de String a UUID
-                    "PAYMENT",
-                    "Pago de deudas en grupo",
-                    d.getGroup() != null ? d.getGroup().getName() : "Sin Grupo",
-                    d.getAmount() != null ? d.getAmount().doubleValue() : 0.0, // Conversión segura a Double
-                    d.getPaidAt() // Es LocalDateTime, pasa directo
-            )).collect(Collectors.toList()));
+            list.addAll(payments.stream().map(d -> TransactionHistoryDTO.builder()
+                    .id(d.getId()) // CORREGIDO: Pasa directo como String, ya no requiere UUID.fromString
+                    .type("PAYMENT")
+                    .description("Pago de deuda: " + d.getExpenseId())
+                    .groupName(d.getGroup() != null ? d.getGroup().getName() : "Sin Grupo")
+                    .amount(d.getAmount() != null ? d.getAmount().doubleValue() : 0.0)
+                    .date(d.getPaidAt())
+                    .build()).collect(Collectors.toList()));
         }
 
-        // 3. Ordenar por fecha descendente
+        // 3. Ordenar por fecha descendente de forma segura (Previene caídas por nulos)
         list.sort((a, b) -> {
             if (a.getDate() == null || b.getDate() == null) return 0;
             return b.getDate().compareTo(a.getDate());

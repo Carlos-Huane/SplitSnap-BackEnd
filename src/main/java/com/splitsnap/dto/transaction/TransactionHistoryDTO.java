@@ -2,18 +2,18 @@ package com.splitsnap.dto.transaction;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
-@Getter 
+@Data 
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor // <- IMPORTANTE: Agrega esto para habilitar el constructor manual
+@AllArgsConstructor 
 public class TransactionHistoryDTO {
-    private UUID id;
-    private String type;
+
+    private String id;
+    private String type; 
     private String description;
     private String groupName;
     private Double amount;

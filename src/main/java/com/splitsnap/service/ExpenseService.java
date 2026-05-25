@@ -20,23 +20,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.Feature;
 import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
-import com.google.protobuf.ByteString;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.List; // <-- ¡AQUÍ ESTÁ LA IMPORTACIÓN QUE FALTABA!
+import java.util.List; 
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,13 +53,13 @@ public class ExpenseService {
         // 1. Verificar si el grupo existe
         Group group = groupService.findById(groupId);
 
-        // 2. Regla de Negocio: Validar que el usuario que registra pertenece al grupo
+        // 2. Validar que el usuario pertenece al grupo
         boolean isMember = groupMemberRepository.existsByGroupIdAndUserId(groupId, authenticatedUser.getId());
         if (!isMember) {
             throw new BusinessException("No tienes autorización para registrar gastos en este grupo.");
         }
 
-        // 3. Regla de Negocio: Validar que los montos asignados sumen exactamente el total del gasto
+        // 3. Validar que los montos asignados sumen exactamente el total del gasto
         double totalSplitsSum = request.getSplitBetween().stream()
                 .mapToDouble(CreateExpenseRequest.SplitEntry::getAmount)
                 .sum();
@@ -73,21 +69,22 @@ public class ExpenseService {
                     ") no coincide con el monto total del gasto (" + request.getAmount() + ").");
         }
 
-        // 4. Mapear y guardar el Gasto Principal
+        // 4. Mapear y guardar el Gasto Principal (ADAPTADO A STRING Y BIGDECIMAL)
         Expense expense = Expense.builder()
+                .id(UUID.randomUUID().toString()) // Generamos el ID como String
                 .description(request.getDescription())
-                .amount(request.getAmount())
+                .amount(BigDecimal.valueOf(request.getAmount())) // Conversión a BigDecimal
                 .group(group)
                 .paidBy(authenticatedUser)
+                .createdBy(authenticatedUser) // Seteamos también el campo de tu compañero
                 .build();
 
         Expense savedExpense = expenseRepository.save(expense);
 
-        // 5. Mapear, guardar splits y GENERAR DEUDAS (SCRUM-97)
+        // 5. Mapear, guardar splits y GENERAR DEUDAS
         for (CreateExpenseRequest.SplitEntry entry : request.getSplitBetween()) {
             User member = userService.findById(entry.getUserId());
             
-            // A. Guardamos el split tradicional
             ExpenseSplit split = ExpenseSplit.builder()
                     .expense(savedExpense)
                     .user(member)
@@ -96,134 +93,115 @@ public class ExpenseService {
             
             expenseSplitRepository.save(split);
 
-            // B. LÓGICA SCRUM-97: Si el usuario del split no es quien pagó, le creamos una deuda automática
+            // Si el usuario del split no es quien pagó, creamos la deuda
             if (!member.getId().equals(authenticatedUser.getId())) {
                 Debt debt = new Debt();
                 
                 debt.setId(UUID.randomUUID().toString()); 
                 debt.setGroup(group);
-                debt.setExpenseId(savedExpense.getId().toString()); 
-                debt.setFromUser(member);                            
+                debt.setExpenseId(savedExpense.getId()); // Ya es un String directo
+                debt.setFromUser(member);                                   
                 debt.setToUser(authenticatedUser);                   
                 debt.setAmount(BigDecimal.valueOf(entry.getAmount())); 
-                debt.setStatus("PENDING");                           
+                debt.setStatus("PENDING");                                  
 
                 debtRepository.save(debt);
             }
         }
 
         return ExpenseResponse.from(savedExpense);
-    } // <-- AQUÍ CIERRA CORRECTAMENTE createExpense
+    }
 
-    // ------ LOGICA SCRUM-98: LISTAR GASTOS DE UN GRUPO ------
     public List<ExpenseResponse> getExpensesByGroup(UUID groupId) {
-        // 1. Validar que el grupo exista utilizando tu servicio existente
-        Group group = groupService.findById(groupId);
-
-        // 2. Buscar todos los gastos asociados a este grupo, ordenados por fecha de creación descendente
+        groupService.findById(groupId);
         List<Expense> expenses = expenseRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
-
-        // 3. Transformar la lista de entidades a una lista de DTOs de respuesta
         return expenses.stream()
                 .map(ExpenseResponse::from)
                 .collect(Collectors.toList());
     } 
 
-
     public ExpenseDetailResponse getExpenseDetails(UUID expenseId) {
-    // 1. Buscar el gasto o lanzar error si no existe
-    Expense expense = expenseRepository.findById(expenseId)
-            .orElseThrow(() -> new com.splitsnap.exception.BusinessException("El gasto solicitado no existe."));
+        // Buscamos usando el String del ID convertido
+        Expense expense = expenseRepository.findById(expenseId.toString())
+                .orElseThrow(() -> new BusinessException("El gasto solicitado no existe."));
 
-    // 2. Buscar los desgloses (splits) asociados a este gasto
-    List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
+        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
 
-    // 3. Mapear los desgloses a su sub-DTO correspondiente
-    List<ExpenseDetailResponse.SplitUserDetail> splitDetails = splits.stream()
-            .map(split -> ExpenseDetailResponse.SplitUserDetail.builder()
-                    .userId(split.getUser().getId())
-                    .userName(split.getUser().getName())
-                    .amount(split.getAmount())
-                    .build())
-            .collect(Collectors.toList());
+        List<ExpenseDetailResponse.SplitUserDetail> splitDetails = splits.stream()
+                .map(split -> ExpenseDetailResponse.SplitUserDetail.builder()
+                        .userId(split.getUser().getId())
+                        .userName(split.getUser().getName())
+                        .amount(split.getAmount())
+                        .build())
+                .collect(Collectors.toList());
 
-    // 4. Construir y retornar la respuesta detallada completa
-    return ExpenseDetailResponse.builder()
-            .id(expense.getId())
-            .description(expense.getDescription())
-            .amount(expense.getAmount())
-            .paidBy(expense.getPaidBy() != null ? expense.getPaidBy().getId() : null)
-            .paidByName(expense.getPaidBy() != null ? expense.getPaidBy().getName() : "Usuario Desconocido")
-            .expenseDate(expense.getExpenseDate() != null ? expense.getExpenseDate() : 
-                         (expense.getCreatedAt() != null ? expense.getCreatedAt().toLocalDate() : LocalDate.now()))
-            .splits(splitDetails)
-            .build();
-}
-
-public OcrResponse processReceiptOcr(MultipartFile file) {
-    if (file == null || file.isEmpty()) {
-        throw new com.splitsnap.exception.BusinessException("El archivo del recibo no puede estar vacío.");
+        return ExpenseDetailResponse.builder()
+                .id(UUID.fromString(expense.getId())) // Convertimos el String de la BD de vuelta a UUID para el DTO
+                .description(expense.getDescription())
+                .amount(expense.getAmountAsDouble()) // Usamos el método de compatibilidad Double
+                .paidBy(expense.getPaidBy() != null ? expense.getPaidBy().getId() : null)
+                .paidByName(expense.getPaidBy() != null ? expense.getPaidBy().getName() : "Usuario Desconocido")
+                .expenseDate(expense.getExpenseDate() != null ? expense.getExpenseDate() : 
+                             (expense.getCreatedAt() != null ? expense.getCreatedAt().toLocalDate() : LocalDate.now()))
+                .splits(splitDetails)
+                .build();
     }
 
-    try {
-        // 1. Convertir el archivo recibido a bytes para Google Vision
-        byte[] imgBytes = file.getBytes();
-        ByteString imgByteString = ByteString.copyFrom(imgBytes);
-        Image img = Image.newBuilder().setContent(imgByteString).build();
+    public OcrResponse processReceiptOcr(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("El archivo del recibo no puede estar vacío.");
+        }
 
-        // 2. Configurar la petición pidiendo detección de TEXTO (OCR)
-        Feature feat = Feature.newBuilder().setType(Type.TEXT_DETECTION).build();
-        AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
-                .addFeatures(feat)
-                .setImage(img)
-                .build();
+        try {
+            byte[] imgBytes = file.getBytes();
+            ByteString imgByteString = ByteString.copyFrom(imgBytes);
+            Image img = Image.newBuilder().setContent(imgByteString).build();
 
-        List<AnnotateImageRequest> requests = new ArrayList<>();
-        requests.add(request);
+            Feature feat = Feature.newBuilder().setType(Type.TEXT_DETECTION).build();
+            AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
+                    .addFeatures(feat)
+                    .setImage(img)
+                    .build();
 
-        String rawText = "";
+            List<AnnotateImageRequest> requests = new ArrayList<>();
+            requests.add(request);
 
-        // 3. Inicializar el cliente de Google y realizar la llamada
-        try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
-            List<AnnotateImageResponse> responses = client.batchAnnotateImages(requests).getResponsesList();
-            
-            for (AnnotateImageResponse res : responses) {
-                if (res.hasError()) {
-                    throw new com.splitsnap.exception.BusinessException("Error de Google Vision: " + res.getError().getMessage());
+            String rawText = "";
+
+            try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
+                List<AnnotateImageResponse> responses = client.batchAnnotateImages(requests).getResponsesList();
+                
+                for (AnnotateImageResponse res : responses) {
+                    if (res.hasError()) {
+                        throw new BusinessException("Error de Google Vision: " + res.getError().getMessage());
+                    }
+                    rawText = res.getTextAnnotationsList().get(0).getDescription();
                 }
-                // Guardamos todo el texto detectado en el recibo
-                rawText = res.getTextAnnotationsList().get(0).getDescription();
             }
+
+            Double detectedAmount = 0.0;
+            Pattern pattern = Pattern.compile("(?i)(total|neto|pago)[\\s\\S]*?(\\d+([.,]\\d{2}))");
+            Matcher matcher = pattern.matcher(rawText);
+            
+            if (matcher.find()) {
+                String amountStr = matcher.group(2).replace(",", ".");
+                detectedAmount = Double.parseDouble(amountStr);
+            } else {
+                detectedAmount = 10.0;
+            }
+
+            String[] lines = rawText.split("\n");
+            String detectedDescription = (lines.length > 0) ? lines[0].trim() : "Gasto Escaneado OCR";
+
+            return OcrResponse.builder()
+                    .description("Escaneo: " + detectedDescription)
+                    .detectedAmount(detectedAmount)
+                    .confidenceScore("98.5%")
+                    .extractedItems(List.of("Texto crudo extraído:", rawText.length() > 50 ? rawText.substring(0, 50) + "..." : rawText))
+                    .build();
+
+        } catch (Exception e) {
+            throw new BusinessException("Error al procesar el OCR con Google Cloud: " + e.getMessage());
         }
-
-        // 4. Procesar el texto extraído para buscar el Monto Total (Lógica de Negocio)
-        Double detectedAmount = 0.0;
-        // Buscamos patrones comunes en recibos como "TOTAL", "TOTAL S/.", "TOTAL:", seguido de un número decimal
-        Pattern pattern = Pattern.compile("(?i)(total|neto|pago)[\\s\\S]*?(\\d+([.,]\\d{2}))");
-        Matcher matcher = pattern.matcher(rawText);
-        
-        if (matcher.find()) {
-            String amountStr = matcher.group(2).replace(",", "."); // Estandarizar decimales
-            detectedAmount = Double.parseDouble(amountStr);
-        } else {
-            detectedAmount = 10.0; // Monto por defecto si el recibo está muy borroso
-        }
-
-        // 5. Detectar una descripción o el nombre del negocio (ejemplo simple por las primeras líneas)
-        String[] lines = rawText.split("\n");
-        String detectedDescription = (lines.length > 0) ? lines[0].trim() : "Gasto Escaneado OCR";
-
-        return OcrResponse.builder()
-                .description("Escaneo: " + detectedDescription)
-                .detectedAmount(detectedAmount)
-                .confidenceScore("98.5%")
-                .extractedItems(List.of("Texto crudo extraído:", rawText.length() > 50 ? rawText.substring(0, 50) + "..." : rawText))
-                .build();
-
-    } catch (Exception e) {
-        throw new com.splitsnap.exception.BusinessException("Error al procesar el OCR con Google Cloud: " + e.getMessage());
     }
-
-    }
-
 }

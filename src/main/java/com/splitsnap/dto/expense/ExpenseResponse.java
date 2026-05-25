@@ -12,7 +12,7 @@ import java.util.UUID;
 @Getter 
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor // Permite que se use tanto con Builder como de forma tradicional
+@AllArgsConstructor
 public class ExpenseResponse {
 
     private UUID id;
@@ -26,12 +26,12 @@ public class ExpenseResponse {
         if (expense == null) return null;
 
         return ExpenseResponse.builder()
-                .id(expense.getId())
+                // Convertimos el String ID de la entidad a UUID para el DTO de salida
+                .id(expense.getId() != null ? UUID.fromString(expense.getId()) : null)
                 .description(expense.getDescription())
-                .amount(expense.getAmount())
+                .amount(expense.getAmountAsDouble()) // Usamos el método compatible Double
                 .groupId(expense.getGroup() != null ? expense.getGroup().getId() : null)
                 .paidBy(expense.getPaidBy() != null ? expense.getPaidBy().getId() : null)
-                // Usamos la fecha del gasto; si no existe, sacamos la parte de la fecha de su creación
                 .expenseDate(expense.getExpenseDate() != null ? expense.getExpenseDate() : 
                              (expense.getCreatedAt() != null ? expense.getCreatedAt().toLocalDate() : LocalDate.now()))
                 .build();

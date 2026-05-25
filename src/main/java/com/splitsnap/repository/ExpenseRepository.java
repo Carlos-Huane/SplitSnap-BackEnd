@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
-
-    // LOGICA SCRUM-98: Buscar gastos de un grupo ordenados por fecha de creación descendente
+public interface ExpenseRepository extends JpaRepository<Expense, String> {
+    
+    // Buscar gastos de un grupo ordenados por fecha de creación descendente
     List<Expense> findByGroupIdOrderByCreatedAtDesc(UUID groupId);
 
     @Query("SELECT e FROM Expense e WHERE e.paidBy.id = :paidById AND e.group.id = :groupId")
@@ -20,4 +20,10 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
     @Query("SELECT e FROM Expense e WHERE e.paidBy.id = :paidById")
     List<Expense> findByPaidById(@Param("paidById") UUID paidById);
+
+    // Busca gastos creados por el usuario
+    List<Expense> findByCreatedById(UUID userId);
+
+    // Busca gastos creados por el usuario en un grupo específico
+    List<Expense> findByCreatedByIdAndGroupId(UUID userId, UUID groupId);
 }
