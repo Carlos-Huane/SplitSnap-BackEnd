@@ -34,6 +34,7 @@ public class SecurityConfig {
                                 "/api/groups/**",
                                 "/api/credits/**",
                                 "/api/users/me/transactions"
+
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
