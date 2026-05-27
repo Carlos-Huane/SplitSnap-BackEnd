@@ -28,7 +28,11 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         abrirSwagger();
 
-        if (userRepository.count() > 0) return;
+                try {
+                        if (userRepository.count() > 0) return;
+                } catch (Exception ignored) {
+                        return;
+                }
 
         User carlos = userRepository.save(User.builder()
                 .name("Carlos Huane")
