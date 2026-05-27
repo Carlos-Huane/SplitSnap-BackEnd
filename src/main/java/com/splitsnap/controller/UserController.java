@@ -23,18 +23,40 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Users", description = "Perfil y búsqueda de usuarios")
 @SecurityRequirement(name = "bearerAuth")
+/**
+ * @apiDefine UsersGroup Perfil, búsqueda y avatar del usuario autenticado.
+ */
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping("/me")
     @Operation(summary = "Obtener perfil del usuario autenticado")
+    /**
+     * @api {get} /api/users/me Obtener perfil autenticado
+     * @apiName GetProfile
+     * @apiGroup Users
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     */
     public ResponseEntity<UserResponse> getProfile(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(userService.getProfile(user.getId()));
     }
 
     @PutMapping("/me")
     @Operation(summary = "Actualizar perfil del usuario autenticado")
+    /**
+     * @api {put} /api/users/me Actualizar perfil autenticado
+     * @apiName UpdateProfile
+     * @apiGroup Users
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     * @apiParam {String} name Nombre completo.
+     * @apiParam {String} email Correo.
+     * @apiParam {String} [phone] Teléfono.
+     * @apiParam {String} [currentPassword] Contraseña actual.
+     * @apiParam {String} [newPassword] Nueva contraseña.
+     */
     public ResponseEntity<UserResponse> updateProfile(
             @AuthenticationPrincipal User user,
             @Valid @RequestBody UpdateProfileRequest request) {
@@ -43,6 +65,14 @@ public class UserController {
 
     @PutMapping("/me/avatar")
     @Operation(summary = "Subir foto de perfil")
+    /**
+     * @api {put} /api/users/me/avatar Subir avatar
+     * @apiName UploadAvatar
+     * @apiGroup Users
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     * @apiParam {File} file Archivo de imagen.
+     */
     public ResponseEntity<Map<String, String>> uploadAvatar(
             @AuthenticationPrincipal User user,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -52,6 +82,14 @@ public class UserController {
 
     @GetMapping("/search")
     @Operation(summary = "Buscar usuarios por nombre o email")
+    /**
+     * @api {get} /api/users/search Buscar usuarios
+     * @apiName SearchUsers
+     * @apiGroup Users
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     * @apiParam {String} q Texto de búsqueda.
+     */
     public ResponseEntity<List<UserResponse>> search(
             @RequestParam String q,
             @AuthenticationPrincipal User user) {

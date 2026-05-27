@@ -79,7 +79,19 @@ El navegador se abre automáticamente en Swagger. Si no ocurre, entra a `http://
 
 ---
 
-## 4. Datos de prueba
+## 4. Documentación estática con apidoc
+
+Si tu profesor quiere ver la documentación sin levantar el backend, usa la salida estática de apidoc:
+
+```bash
+npx apidoc -i src/main/java -o docs/apidoc
+```
+
+Luego abre directamente `docs/apidoc/index.html` en el navegador. Esa carpeta se puede publicar como archivo estático o subir a GitHub Pages.
+
+---
+
+## 5. Datos de prueba
 
 Al arrancar por primera vez se crean estos registros:
 
@@ -100,7 +112,7 @@ Al arrancar por primera vez se crean estos registros:
 
 ---
 
-## 5. Ver las tablas con DBeaver
+## 6. Ver las tablas con DBeaver
 
 1. Abre DBeaver → clic en el enchufe con `+` → **New Database Connection**
 2. Selecciona **MySQL** → Next
@@ -116,7 +128,7 @@ Ya puedes ver las tablas `users`, `groups` y `group_members` con los datos inici
 
 ---
 
-## 6. Crear tu endpoint (flujo de trabajo)
+## 7. Crear tu endpoint (flujo de trabajo)
 
 ### 6.1 Crear la rama desde develop
 

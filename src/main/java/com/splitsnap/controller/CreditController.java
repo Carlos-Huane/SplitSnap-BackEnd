@@ -15,11 +15,22 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/credits")
 @RequiredArgsConstructor
+/**
+ * @apiDefine CreditsGroup Crédito y balance del usuario.
+ */
 public class CreditController {
 
     private final CreditService creditService;
 
     @PostMapping("/buy")
+    /**
+     * @api {post} /api/credits/buy Comprar créditos
+     * @apiName BuyCredits
+     * @apiGroup Credits
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     * @apiParam {Number} amount Cantidad de créditos.
+     */
     public ResponseEntity<?> buyCredits(
             @Valid @RequestBody BuyCreditsRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -29,6 +40,13 @@ public class CreditController {
     }
 
     @GetMapping("/me")
+    /**
+     * @api {get} /api/credits/me Ver créditos actuales
+     * @apiName GetCreditInfo
+     * @apiGroup Credits
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     */
     public ResponseEntity<?> getCreditInfo(@AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(creditService.getCreditInfo(currentUser));
     }
