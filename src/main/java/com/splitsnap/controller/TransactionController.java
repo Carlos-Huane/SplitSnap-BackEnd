@@ -13,11 +13,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users/me/transactions")
 @RequiredArgsConstructor
+/**
+ * @apiDefine TransactionsGroup Historial consolidado de movimientos.
+ */
 public class TransactionController {
 
     private final TransactionService transactionService;
 
     @GetMapping
+    /**
+     * @api {get} /api/users/me/transactions Historial completo
+     * @apiName GetFullHistory
+     * @apiGroup Transactions
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     * @apiParam {String} [groupId] Filtra por grupo.
+     * @apiParam {String} [type] Filtra por tipo.
+     */
     public ResponseEntity<?> getFullHistory(
             @AuthenticationPrincipal User user,
             @RequestParam(required = false) String groupId,

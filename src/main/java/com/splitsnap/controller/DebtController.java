@@ -14,6 +14,9 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/groups")
+/**
+ * @apiDefine DebtsGroup Consulta y pago de deudas.
+ */
 public class DebtController {
 
     private final DebtService debtService;
@@ -28,6 +31,14 @@ public class DebtController {
      * Endpoint: GET /api/groups/{groupId}/debts?status={status}
      */
     @GetMapping("/{groupId}/debts")
+    /**
+     * @api {get} /api/groups/:groupId/debts Ver deudas de un grupo
+     * @apiName GetDebtsByGroup
+     * @apiGroup Debts
+     * @apiVersion 1.0.0
+     * @apiParam {String} groupId ID del grupo.
+     * @apiParam {String} [status] Estado de la deuda.
+     */
     public ResponseEntity<?> getDebtsByGroup(
             @PathVariable String groupId,
             @RequestParam(required = false) String status) {
@@ -42,6 +53,14 @@ public class DebtController {
     }
 
     @PutMapping("/{groupId}/debts/{debtId}/mark-paid")
+    /**
+     * @api {put} /api/groups/:groupId/debts/:debtId/mark-paid Marcar deuda como pagada
+     * @apiName MarkDebtAsPaid
+     * @apiGroup Debts
+     * @apiVersion 1.0.0
+     * @apiParam {String} groupId ID del grupo.
+     * @apiParam {String} debtId ID de la deuda.
+     */
     public ResponseEntity<?> markAsPaid(
             @PathVariable String groupId,
             @PathVariable String debtId,
@@ -57,6 +76,14 @@ public class DebtController {
     }
 
     @PutMapping("/{groupId}/debts/{debtId}/pay-credits")
+    /**
+     * @api {put} /api/groups/:groupId/debts/:debtId/pay-credits Pagar con créditos
+     * @apiName PayDebtWithCredits
+     * @apiGroup Debts
+     * @apiVersion 1.0.0
+     * @apiParam {String} groupId ID del grupo.
+     * @apiParam {String} debtId ID de la deuda.
+     */
     public ResponseEntity<?> payWithCredits(
             @PathVariable String groupId,
             @PathVariable String debtId,
