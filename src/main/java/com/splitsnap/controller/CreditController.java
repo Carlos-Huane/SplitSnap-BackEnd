@@ -3,6 +3,9 @@ package com.splitsnap.controller;
 import com.splitsnap.dto.credit.BuyCreditsRequest;
 import com.splitsnap.model.User;
 import com.splitsnap.service.CreditService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,41 +16,27 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/credits")
+@RequestMapping("/api/users/me/credits")
 @RequiredArgsConstructor
-/**
- * @apiDefine CreditsGroup Crédito y balance del usuario.
- */
+@Tag(name = "Credits", description = "Gestión de créditos del usuario autenticado")
+@SecurityRequirement(name = "bearerAuth")
 public class CreditController {
 
     private final CreditService creditService;
 
+    @GetMapping
+    @Operation(summary = "Ver balance e historial de créditos (HU-5.4)")
+    public ResponseEntity<Map<String, Object>> getCreditInfo(@AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(creditService.getCreditInfo(currentUser));
+    }
+
     @PostMapping("/buy")
-    /**
-     * @api {post} /api/credits/buy Comprar créditos
-     * @apiName BuyCredits
-     * @apiGroup Credits
-     * @apiVersion 1.0.0
-     * @apiHeader {String} Authorization Bearer JWT.
-     * @apiParam {Number} amount Cantidad de créditos.
-     */
-    public ResponseEntity<?> buyCredits(
+    @Operation(summary = "Comprar créditos (HU-5.5)")
+    public ResponseEntity<Map<String, Object>> buyCredits(
             @Valid @RequestBody BuyCreditsRequest request,
             @AuthenticationPrincipal User currentUser) {
 
         BigDecimal newBalance = creditService.buyCredits(currentUser, request);
         return ResponseEntity.ok(Map.of("message", "Compra exitosa", "newBalance", newBalance));
-    }
-
-    @GetMapping("/me")
-    /**
-     * @api {get} /api/credits/me Ver créditos actuales
-     * @apiName GetCreditInfo
-     * @apiGroup Credits
-     * @apiVersion 1.0.0
-     * @apiHeader {String} Authorization Bearer JWT.
-     */
-    public ResponseEntity<?> getCreditInfo(@AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(creditService.getCreditInfo(currentUser));
     }
 }

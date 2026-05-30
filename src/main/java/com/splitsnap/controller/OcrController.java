@@ -1,0 +1,28 @@
+package com.splitsnap.controller;
+
+import com.splitsnap.dto.expense.OcrResponse;
+import com.splitsnap.service.ExpenseService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/ocr")
+@RequiredArgsConstructor
+@Tag(name = "OCR", description = "Escaneo de recibos con Google Cloud Vision")
+@SecurityRequirement(name = "bearerAuth")
+public class OcrController {
+
+    private final ExpenseService expenseService;
+
+    @PostMapping(value = "/scan", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Escanear un recibo y extraer ítems (HU-4.5)")
+    public ResponseEntity<OcrResponse> scanReceipt(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(expenseService.processReceiptOcr(file));
+    }
+}
