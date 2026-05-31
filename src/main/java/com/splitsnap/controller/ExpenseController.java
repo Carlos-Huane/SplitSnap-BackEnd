@@ -3,9 +3,7 @@ package com.splitsnap.controller;
 import com.splitsnap.dto.expense.CreateExpenseRequest;
 import com.splitsnap.dto.expense.ExpenseDetailResponse;
 import com.splitsnap.dto.expense.ExpenseResponse;
-import com.splitsnap.dto.expense.OcrResponse;
 import com.splitsnap.model.User;
-
 import com.splitsnap.service.ExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -14,14 +12,12 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus; // <-- IMPORTANTE
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import org.springframework.http.MediaType;
-import java.util.List; // <-- ¡ESTA ES LA QUE FALTABA PARA EL GET!
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,9 +25,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Expenses", description = "Gestión de gastos de SplitSnap")
 @SecurityRequirement(name = "bearerAuth")
-/**
- * @apiDefine ExpensesGroup Gastos, detalle y OCR.
- */
 public class ExpenseController {
 
     private final ExpenseService expenseService;
@@ -61,77 +54,45 @@ public class ExpenseController {
             @PathVariable UUID groupId,
             @Valid @RequestBody CreateExpenseRequest request,
             @AuthenticationPrincipal User authenticatedUser) {
-        
+
         ExpenseResponse response = expenseService.createExpense(groupId, request, authenticatedUser);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/{groupId}/expenses")
     @Operation(
-        summary = "Listar todos los gastos de un grupo ordenados por fecha (SCRUM-98)",
-        description = "Obtiene todos los gastos registrados en un grupo específico"
+        summary = "Listar todos los gastos de un grupo ordenados por fecha (HU-4.3)",
+        description = "Devuelve todos los gastos del grupo ordenados por fecha descendente. Requiere ser miembro."
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Lista obtenida correctamente"),
+        @ApiResponse(responseCode = "200", description = "Listado obtenido correctamente"),
         @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "No eres miembro del grupo"),
         @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
     })
-    /**
-     * @api {get} /api/groups/:groupId/expenses Listar gastos del grupo
-     * @apiName GetExpensesByGroup
-     * @apiGroup Expenses
-     * @apiVersion 1.0.0
-     * @apiHeader {String} Authorization Bearer JWT.
-     * @apiParam {String} groupId ID del grupo.
-     */
-    public ResponseEntity<List<ExpenseResponse>> getExpensesByGroup(@PathVariable UUID groupId) {
-        List<ExpenseResponse> expenses = expenseService.getExpensesByGroup(groupId);
+    public ResponseEntity<List<ExpenseResponse>> getExpensesByGroup(
+            @PathVariable UUID groupId,
+            @AuthenticationPrincipal User authenticatedUser) {
+        List<ExpenseResponse> expenses = expenseService.getExpensesByGroup(groupId, authenticatedUser);
         return ResponseEntity.ok(expenses);
     }
 
-    @GetMapping("/expenses/{expenseId}")
+    @GetMapping("/{groupId}/expenses/{expenseId}")
     @Operation(
-        summary = "Ver el detalle completo de un gasto y sus desgloses (SCRUM-99)",
-        description = "Obtiene toda la información asociada a un gasto específico"
+        summary = "Ver el detalle completo de un gasto y sus desgloses (HU-4.4)",
+        description = "Devuelve los splits por usuario del gasto. Requiere ser miembro del grupo."
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Detalle obtenido correctamente"),
-        @ApiResponse(responseCode = "404", description = "Gasto no encontrado"),
-        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "No eres miembro del grupo"),
+        @ApiResponse(responseCode = "404", description = "Grupo o gasto no encontrado")
     })
-    /**
-     * @api {get} /api/groups/expenses/:expenseId Detalle del gasto
-     * @apiName GetExpenseDetails
-     * @apiGroup Expenses
-     * @apiVersion 1.0.0
-     * @apiHeader {String} Authorization Bearer JWT.
-     * @apiParam {String} expenseId ID del gasto.
-     */
-    public ResponseEntity<ExpenseDetailResponse> getExpenseDetails(@PathVariable UUID expenseId) {
-        ExpenseDetailResponse detail = expenseService.getExpenseDetails(expenseId);
+    public ResponseEntity<ExpenseDetailResponse> getExpenseDetails(
+            @PathVariable UUID groupId,
+            @PathVariable UUID expenseId,
+            @AuthenticationPrincipal User authenticatedUser) {
+        ExpenseDetailResponse detail = expenseService.getExpenseDetails(groupId, expenseId, authenticatedUser);
         return ResponseEntity.ok(detail);
-    }  
-    
-    @PostMapping(value = "/expenses/ocr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-        summary = "Escanear y extraer datos de un recibo mediante OCR (SCRUM-100)",
-        description = "Procesa una imagen o PDF de recibo y extrae automáticamente los datos detectados"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Recibo procesado correctamente"),
-        @ApiResponse(responseCode = "400", description = "Archivo inválido"),
-        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
-    })
-    /**
-     * @api {post} /api/groups/expenses/ocr Escanear recibo
-     * @apiName UploadReceiptOcr
-     * @apiGroup Expenses
-     * @apiVersion 1.0.0
-     * @apiHeader {String} Authorization Bearer JWT.
-     * @apiParam {File} file Imagen o PDF del recibo.
-     */
-    public ResponseEntity<OcrResponse> uploadReceiptOcr(@RequestParam("file") MultipartFile file) {
-        OcrResponse response = expenseService.processReceiptOcr(file);
-        return ResponseEntity.ok(response);
-    }    
+    }
 }

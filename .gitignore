@@ -2,3 +2,4 @@ target/
 .vscode/launch.json
 *.jar
 .env
+.gcp/

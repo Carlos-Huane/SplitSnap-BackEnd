@@ -5,6 +5,8 @@ import com.splitsnap.dto.user.UserResponse;
 import com.splitsnap.model.User;
 import com.splitsnap.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,7 +33,14 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
-    @Operation(summary = "Obtener perfil del usuario autenticado")
+    @Operation(
+        summary = "Obtener perfil del usuario autenticado",
+        description = "Devuelve los datos del usuario asociado al JWT (sin password)"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Perfil obtenido correctamente"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {get} /api/users/me Obtener perfil autenticado
      * @apiName GetProfile
@@ -44,7 +53,16 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    @Operation(summary = "Actualizar perfil del usuario autenticado")
+    @Operation(
+        summary = "Actualizar perfil del usuario autenticado",
+        description = "Permite editar nombre, email, teléfono y contraseña del usuario actual"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Perfil actualizado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos o contraseña actual incorrecta"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "409", description = "El email ya está en uso")
+    })
     /**
      * @api {put} /api/users/me Actualizar perfil autenticado
      * @apiName UpdateProfile
@@ -64,7 +82,15 @@ public class UserController {
     }
 
     @PutMapping("/me/avatar")
-    @Operation(summary = "Subir foto de perfil")
+    @Operation(
+        summary = "Subir foto de perfil",
+        description = "Sube una imagen (jpg/png/webp, máx 2MB) como avatar del usuario autenticado"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Avatar actualizado, devuelve la URL"),
+        @ApiResponse(responseCode = "400", description = "Archivo inválido o supera el tamaño máximo"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {put} /api/users/me/avatar Subir avatar
      * @apiName UploadAvatar
@@ -81,7 +107,15 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Buscar usuarios por nombre o email")
+    @Operation(
+        summary = "Buscar usuarios por nombre o email",
+        description = "Devuelve los usuarios que coinciden con el query (mínimo 2 caracteres). Excluye al usuario autenticado."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Búsqueda realizada correctamente"),
+        @ApiResponse(responseCode = "400", description = "El query tiene menos de 2 caracteres"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {get} /api/users/search Buscar usuarios
      * @apiName SearchUsers

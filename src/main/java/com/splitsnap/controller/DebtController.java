@@ -4,112 +4,85 @@ import com.splitsnap.dto.debt.DebtResponse;
 import com.splitsnap.dto.debt.MarkAsPaidRequest;
 import com.splitsnap.model.User;
 import com.splitsnap.service.DebtService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/groups")
-/**
- * @apiDefine DebtsGroup Consulta y pago de deudas.
- */
+@RequiredArgsConstructor
+@Tag(name = "Debts", description = "Consulta y pago de deudas")
+@SecurityRequirement(name = "bearerAuth")
 public class DebtController {
 
     private final DebtService debtService;
 
-    // Inyección de dependencias por constructor
-    public DebtController(DebtService debtService) {
-        this.debtService = debtService;
-    }
-
-    /**
-     * HU-5.1: Ver deudas de un grupo
-     * Endpoint: GET /api/groups/{groupId}/debts?status={status}
-     */
     @GetMapping("/{groupId}/debts")
-    /**
-     * @api {get} /api/groups/:groupId/debts Ver deudas de un grupo
-     * @apiName GetDebtsByGroup
-     * @apiGroup Debts
-     * @apiVersion 1.0.0
-     * @apiParam {String} groupId ID del grupo.
-     * @apiParam {String} [status] Estado de la deuda.
-     */
-    public ResponseEntity<?> getDebtsByGroup(
-            @PathVariable String groupId,
-            @RequestParam(required = false) String status) {
-
-        try {
-            List<DebtResponse> debts = debtService.getDebtsByGroup(groupId, status);
-            return ResponseEntity.ok(debts);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Error interno: " + e.getMessage());
-        }
+    @Operation(
+        summary = "Ver deudas de un grupo (HU-5.1)",
+        description = "Lista las deudas del grupo. Filtro opcional por estado: PENDING o PAID. Requiere ser miembro."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Listado obtenido correctamente"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "No eres miembro del grupo"),
+        @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<List<DebtResponse>> getDebtsByGroup(
+            @PathVariable UUID groupId,
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(debtService.getDebtsByGroup(groupId, status, currentUser));
     }
 
     @PutMapping("/{groupId}/debts/{debtId}/mark-paid")
-    /**
-     * @api {put} /api/groups/:groupId/debts/:debtId/mark-paid Marcar deuda como pagada
-     * @apiName MarkDebtAsPaid
-     * @apiGroup Debts
-     * @apiVersion 1.0.0
-     * @apiParam {String} groupId ID del grupo.
-     * @apiParam {String} debtId ID de la deuda.
-     */
-    public ResponseEntity<?> markAsPaid(
-            @PathVariable String groupId,
+    @Operation(
+        summary = "Marcar deuda como pagada (HU-5.2)",
+        description = "El deudor marca su deuda como saldada indicando el método (yape, paypal, efectivo)"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Deuda marcada como pagada"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "Solo el deudor puede marcar la deuda"),
+        @ApiResponse(responseCode = "404", description = "Deuda no encontrada en el grupo"),
+        @ApiResponse(responseCode = "409", description = "La deuda ya estaba pagada")
+    })
+    public ResponseEntity<DebtResponse> markAsPaid(
+            @PathVariable UUID groupId,
             @PathVariable String debtId,
             @Valid @RequestBody MarkAsPaidRequest request,
             @AuthenticationPrincipal User currentUser) {
-
-        try {
-            return ResponseEntity.ok(debtService.markDebtAsPaid(groupId, debtId, request, currentUser));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
-        }
+        return ResponseEntity.ok(debtService.markDebtAsPaid(groupId, debtId, request, currentUser));
     }
 
     @PutMapping("/{groupId}/debts/{debtId}/pay-credits")
-    /**
-     * @api {put} /api/groups/:groupId/debts/:debtId/pay-credits Pagar con créditos
-     * @apiName PayDebtWithCredits
-     * @apiGroup Debts
-     * @apiVersion 1.0.0
-     * @apiParam {String} groupId ID del grupo.
-     * @apiParam {String} debtId ID de la deuda.
-     */
-    public ResponseEntity<?> payWithCredits(
-            @PathVariable String groupId,
+    @Operation(
+        summary = "Pagar deuda con créditos del sistema (HU-5.3)",
+        description = "Descuenta créditos del usuario para saldar la deuda. Registra la transacción tipo SPEND."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Deuda pagada con créditos"),
+        @ApiResponse(responseCode = "400", description = "Créditos insuficientes"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "Solo el deudor puede pagar la deuda"),
+        @ApiResponse(responseCode = "404", description = "Deuda no encontrada en el grupo"),
+        @ApiResponse(responseCode = "409", description = "La deuda ya estaba pagada")
+    })
+    public ResponseEntity<DebtResponse> payWithCredits(
+            @PathVariable UUID groupId,
             @PathVariable String debtId,
             @AuthenticationPrincipal User currentUser) {
-
-        try {
-            // Llamada al servicio
-            DebtResponse response = debtService.payDebtWithCredits(groupId, debtId, currentUser);
-            return ResponseEntity.ok(response);
-
-        } catch (IllegalArgumentException e) {
-            // Este catch maneja específicamente los "Créditos insuficientes"
-            return ResponseEntity.badRequest().body(e.getMessage());
-
-        } catch (IllegalStateException e) {
-            // Este catch maneja el estado "Ya pagada"
-            return ResponseEntity.badRequest().body(e.getMessage());
-
-        } catch (AccessDeniedException e) {
-            // Maneja intentos de pago de deudas ajenas
-            return ResponseEntity.status(403).body(e.getMessage());
-
-        } catch (Exception e) {
-            // Manejo de errores inesperados (Logueo obligatorio)
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Ocurrió un error al procesar el pago con créditos.");
-        }
+        return ResponseEntity.ok(debtService.payDebtWithCredits(groupId, debtId, currentUser));
     }
 }

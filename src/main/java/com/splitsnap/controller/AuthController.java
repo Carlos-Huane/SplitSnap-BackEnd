@@ -5,6 +5,8 @@ import com.splitsnap.dto.auth.LoginRequest;
 import com.splitsnap.dto.auth.RegisterRequest;
 import com.splitsnap.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +26,15 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    @Operation(summary = "Registrar nuevo usuario")
+    @Operation(
+        summary = "Registrar nuevo usuario",
+        description = "Crea una nueva cuenta y devuelve un JWT junto con los datos básicos del usuario"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Usuario registrado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos (validaciones)"),
+        @ApiResponse(responseCode = "409", description = "El email ya está registrado")
+    })
     /**
      * @api {post} /api/auth/register Registrar nuevo usuario
      * @apiName RegisterUser
@@ -42,7 +52,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Iniciar sesión")
+    @Operation(
+        summary = "Iniciar sesión",
+        description = "Valida credenciales y devuelve un JWT con expiración de 24h"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Inicio de sesión exitoso"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos (validaciones)"),
+        @ApiResponse(responseCode = "401", description = "Credenciales incorrectas")
+    })
     /**
      * @api {post} /api/auth/login Iniciar sesión
      * @apiName LoginUser

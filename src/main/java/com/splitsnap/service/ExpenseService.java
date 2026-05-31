@@ -6,6 +6,7 @@ import com.splitsnap.dto.expense.ExpenseDetailResponse;
 import com.splitsnap.dto.expense.ExpenseResponse;
 import com.splitsnap.dto.expense.OcrResponse;
 import com.splitsnap.exception.BusinessException;
+import com.splitsnap.exception.EntityNotFoundException;
 import com.splitsnap.model.Expense;
 import com.splitsnap.model.ExpenseSplit;
 import com.splitsnap.model.Debt;
@@ -16,6 +17,7 @@ import com.splitsnap.repository.ExpenseSplitRepository;
 import com.splitsnap.repository.GroupMemberRepository;
 import com.splitsnap.repository.DebtRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,7 +32,7 @@ import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.List; 
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
@@ -49,62 +51,63 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse createExpense(UUID groupId, CreateExpenseRequest request, User authenticatedUser) {
-        
-        // 1. Verificar si el grupo existe
+
         Group group = groupService.findById(groupId);
 
-        // 2. Validar que el usuario pertenece al grupo
-        boolean isMember = groupMemberRepository.existsByGroupIdAndUserId(groupId, authenticatedUser.getId());
-        if (!isMember) {
-            throw new BusinessException("No tienes autorización para registrar gastos en este grupo.");
+        assertIsMember(groupId, authenticatedUser.getId());
+
+        User payer = (request.getPaidBy() != null)
+                ? userService.findById(request.getPaidBy())
+                : authenticatedUser;
+
+        if (!payer.getId().equals(authenticatedUser.getId())
+                && !groupMemberRepository.existsByGroupIdAndUserId(groupId, payer.getId())) {
+            throw new BusinessException("El usuario que pagó no es miembro del grupo.");
         }
 
-        // 3. Validar que los montos asignados sumen exactamente el total del gasto
         double totalSplitsSum = request.getSplitBetween().stream()
                 .mapToDouble(CreateExpenseRequest.SplitEntry::getAmount)
                 .sum();
-        
         if (Math.abs(totalSplitsSum - request.getAmount()) > 0.01) {
-            throw new BusinessException("La suma de los montos individuales (" + totalSplitsSum + 
-                    ") no coincide con el monto total del gasto (" + request.getAmount() + ").");
+            throw new BusinessException("La suma de los montos individuales (" + totalSplitsSum
+                    + ") no coincide con el monto total del gasto (" + request.getAmount() + ").");
         }
 
-        // 4. Mapear y guardar el Gasto Principal (ADAPTADO A STRING Y BIGDECIMAL)
         Expense expense = Expense.builder()
-                .id(UUID.randomUUID().toString()) // Generamos el ID como String
+                .id(UUID.randomUUID().toString())
                 .description(request.getDescription())
-                .amount(BigDecimal.valueOf(request.getAmount())) // Conversión a BigDecimal
+                .amount(BigDecimal.valueOf(request.getAmount()))
                 .group(group)
-                .paidBy(authenticatedUser)
-                .createdBy(authenticatedUser) // Seteamos también el campo de tu compañero
+                .paidBy(payer)
+                .createdBy(authenticatedUser)
+                .expenseDate(request.getDate() != null ? request.getDate() : LocalDate.now())
                 .build();
 
         Expense savedExpense = expenseRepository.save(expense);
 
-        // 5. Mapear, guardar splits y GENERAR DEUDAS
         for (CreateExpenseRequest.SplitEntry entry : request.getSplitBetween()) {
             User member = userService.findById(entry.getUserId());
-            
+
+            if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, member.getId())) {
+                throw new BusinessException("El usuario " + member.getName() + " no es miembro del grupo.");
+            }
+
             ExpenseSplit split = ExpenseSplit.builder()
                     .expense(savedExpense)
                     .user(member)
                     .amount(entry.getAmount())
                     .build();
-            
             expenseSplitRepository.save(split);
 
-            // Si el usuario del split no es quien pagó, creamos la deuda
-            if (!member.getId().equals(authenticatedUser.getId())) {
+            if (!member.getId().equals(payer.getId())) {
                 Debt debt = new Debt();
-                
-                debt.setId(UUID.randomUUID().toString()); 
+                debt.setId(UUID.randomUUID().toString());
                 debt.setGroup(group);
-                debt.setExpenseId(savedExpense.getId()); // Ya es un String directo
-                debt.setFromUser(member);                                   
-                debt.setToUser(authenticatedUser);                   
-                debt.setAmount(BigDecimal.valueOf(entry.getAmount())); 
-                debt.setStatus("PENDING");                                  
-
+                debt.setExpenseId(savedExpense.getId());
+                debt.setFromUser(member);
+                debt.setToUser(payer);
+                debt.setAmount(BigDecimal.valueOf(entry.getAmount()));
+                debt.setStatus("PENDING");
                 debtRepository.save(debt);
             }
         }
@@ -112,20 +115,29 @@ public class ExpenseService {
         return ExpenseResponse.from(savedExpense);
     }
 
-    public List<ExpenseResponse> getExpensesByGroup(UUID groupId) {
+    @Transactional(readOnly = true)
+    public List<ExpenseResponse> getExpensesByGroup(UUID groupId, User authenticatedUser) {
         groupService.findById(groupId);
-        List<Expense> expenses = expenseRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
-        return expenses.stream()
+        assertIsMember(groupId, authenticatedUser.getId());
+
+        return expenseRepository.findByGroupIdOrderByCreatedAtDesc(groupId).stream()
                 .map(ExpenseResponse::from)
                 .collect(Collectors.toList());
-    } 
+    }
 
-    public ExpenseDetailResponse getExpenseDetails(UUID expenseId) {
-        // Buscamos usando el String del ID convertido
+    @Transactional(readOnly = true)
+    public ExpenseDetailResponse getExpenseDetails(UUID groupId, UUID expenseId, User authenticatedUser) {
+        groupService.findById(groupId);
+        assertIsMember(groupId, authenticatedUser.getId());
+
         Expense expense = expenseRepository.findById(expenseId.toString())
-                .orElseThrow(() -> new BusinessException("El gasto solicitado no existe."));
+                .orElseThrow(() -> new EntityNotFoundException("El gasto solicitado no existe."));
 
-        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
+        if (expense.getGroup() == null || !expense.getGroup().getId().equals(groupId)) {
+            throw new EntityNotFoundException("El gasto no pertenece a este grupo.");
+        }
+
+        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId.toString());
 
         List<ExpenseDetailResponse.SplitUserDetail> splitDetails = splits.stream()
                 .map(split -> ExpenseDetailResponse.SplitUserDetail.builder()
@@ -136,13 +148,13 @@ public class ExpenseService {
                 .collect(Collectors.toList());
 
         return ExpenseDetailResponse.builder()
-                .id(UUID.fromString(expense.getId())) // Convertimos el String de la BD de vuelta a UUID para el DTO
+                .id(UUID.fromString(expense.getId()))
                 .description(expense.getDescription())
-                .amount(expense.getAmountAsDouble()) // Usamos el método de compatibilidad Double
+                .amount(expense.getAmountAsDouble())
                 .paidBy(expense.getPaidBy() != null ? expense.getPaidBy().getId() : null)
                 .paidByName(expense.getPaidBy() != null ? expense.getPaidBy().getName() : "Usuario Desconocido")
-                .expenseDate(expense.getExpenseDate() != null ? expense.getExpenseDate() : 
-                             (expense.getCreatedAt() != null ? expense.getCreatedAt().toLocalDate() : LocalDate.now()))
+                .expenseDate(expense.getExpenseDate() != null ? expense.getExpenseDate()
+                        : (expense.getCreatedAt() != null ? expense.getCreatedAt().toLocalDate() : LocalDate.now()))
                 .splits(splitDetails)
                 .build();
     }
@@ -170,7 +182,6 @@ public class ExpenseService {
 
             try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
                 List<AnnotateImageResponse> responses = client.batchAnnotateImages(requests).getResponsesList();
-                
                 for (AnnotateImageResponse res : responses) {
                     if (res.hasError()) {
                         throw new BusinessException("Error de Google Vision: " + res.getError().getMessage());
@@ -182,12 +193,9 @@ public class ExpenseService {
             Double detectedAmount = 0.0;
             Pattern pattern = Pattern.compile("(?i)(total|neto|pago)[\\s\\S]*?(\\d+([.,]\\d{2}))");
             Matcher matcher = pattern.matcher(rawText);
-            
             if (matcher.find()) {
                 String amountStr = matcher.group(2).replace(",", ".");
                 detectedAmount = Double.parseDouble(amountStr);
-            } else {
-                detectedAmount = 10.0;
             }
 
             String[] lines = rawText.split("\n");
@@ -196,12 +204,18 @@ public class ExpenseService {
             return OcrResponse.builder()
                     .description("Escaneo: " + detectedDescription)
                     .detectedAmount(detectedAmount)
-                    .confidenceScore("98.5%")
-                    .extractedItems(List.of("Texto crudo extraído:", rawText.length() > 50 ? rawText.substring(0, 50) + "..." : rawText))
+                    .confidenceScore(detectedAmount > 0 ? "extracted" : "fallback")
+                    .extractedItems(List.of(rawText.length() > 50 ? rawText.substring(0, 50) + "..." : rawText))
                     .build();
 
         } catch (Exception e) {
-            throw new BusinessException("Error al procesar el OCR con Google Cloud: " + e.getMessage());
+            throw new BusinessException("Error al procesar el OCR: " + e.getMessage());
+        }
+    }
+
+    private void assertIsMember(UUID groupId, UUID userId) {
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) {
+            throw new AccessDeniedException("No eres miembro de este grupo.");
         }
     }
 }
