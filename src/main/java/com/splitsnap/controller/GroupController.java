@@ -6,6 +6,8 @@ import com.splitsnap.dto.group.GroupResponse;
 import com.splitsnap.model.User;
 import com.splitsnap.service.GroupService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,7 +35,13 @@ public class GroupController {
     @PostMapping
     @Operation(
         summary = "Crear grupo",
-        description = "Permite crear un nuevo grupo de gastos compartidos asociado al usuario autenticado")
+        description = "Permite crear un nuevo grupo de gastos compartidos asociado al usuario autenticado"
+    )
+    @ApiResponses(value = {
+    @ApiResponse(responseCode = "201", description = "Grupo creado correctamente"),
+    @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+    @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {post} /api/groups Crear grupo
      * @apiName CreateGroup
@@ -54,7 +62,12 @@ public class GroupController {
     @GetMapping
     @Operation(
         summary = "Listar mis grupos",
-        description = "Obtiene todos los grupos donde participa el usuario autenticado")
+        description = "Obtiene todos los grupos donde participa el usuario autenticado"
+    )
+    @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "Lista obtenida correctamente"),
+    @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {get} /api/groups Listar mis grupos
      * @apiName GetMyGroups
@@ -69,7 +82,13 @@ public class GroupController {
     @GetMapping("/{groupId}")
     @Operation(
         summary = "Ver detalle de un grupo",
-        description = "Obtiene la información completa de un grupo específico")
+        description = "Obtiene la información completa de un grupo específico"
+    )
+    @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "Grupo encontrado"),
+    @ApiResponse(responseCode = "404", description = "Grupo no encontrado"),
+    @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {get} /api/groups/:groupId Ver detalle de un grupo
      * @apiName GetGroup
