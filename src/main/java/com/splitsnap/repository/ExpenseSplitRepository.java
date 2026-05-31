@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Repository
 public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID> {
-    
-    // LÓGICA SCRUM-99: Buscar todos los desgloses asociados a un gasto específico
-    List<ExpenseSplit> findByExpenseId(UUID expenseId);
+
+    // Expense.id es String, por eso el parámetro va como String
+    List<ExpenseSplit> findByExpenseId(String expenseId);
 }

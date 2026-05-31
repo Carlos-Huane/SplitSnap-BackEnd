@@ -137,7 +137,7 @@ public class ExpenseService {
             throw new EntityNotFoundException("El gasto no pertenece a este grupo.");
         }
 
-        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
+        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId.toString());
 
         List<ExpenseDetailResponse.SplitUserDetail> splitDetails = splits.stream()
                 .map(split -> ExpenseDetailResponse.SplitUserDetail.builder()

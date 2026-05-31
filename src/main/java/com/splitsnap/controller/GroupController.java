@@ -107,6 +107,13 @@ public class GroupController {
     @Operation(
         summary = "Agregar miembro al grupo",
         description = "Agrega un usuario existente a un grupo determinado")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Miembro agregado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos o no eres miembro del grupo"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "404", description = "Grupo o usuario no encontrado"),
+        @ApiResponse(responseCode = "409", description = "El usuario ya es miembro del grupo")
+    })
     /**
      * @api {post} /api/groups/:groupId/members Agregar miembro
      * @apiName AddMember
@@ -127,6 +134,13 @@ public class GroupController {
     @Operation(
         summary = "Eliminar miembro del grupo",
         description = "Elimina un miembro del grupo si el usuario tiene permisos")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Miembro eliminado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Reglas de negocio violadas (creador no puede removerse, etc.)"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "Solo el creador del grupo puede remover miembros"),
+        @ApiResponse(responseCode = "404", description = "Grupo o miembro no encontrado")
+    })
     /**
      * @api {delete} /api/groups/:groupId/members/:userId Eliminar miembro
      * @apiName RemoveMember

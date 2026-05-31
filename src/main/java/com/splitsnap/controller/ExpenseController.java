@@ -60,7 +60,16 @@ public class ExpenseController {
     }
 
     @GetMapping("/{groupId}/expenses")
-    @Operation(summary = "Listar todos los gastos de un grupo ordenados por fecha (HU-4.3)")
+    @Operation(
+        summary = "Listar todos los gastos de un grupo ordenados por fecha (HU-4.3)",
+        description = "Devuelve todos los gastos del grupo ordenados por fecha descendente. Requiere ser miembro."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Listado obtenido correctamente"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "No eres miembro del grupo"),
+        @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
     public ResponseEntity<List<ExpenseResponse>> getExpensesByGroup(
             @PathVariable UUID groupId,
             @AuthenticationPrincipal User authenticatedUser) {
@@ -69,7 +78,16 @@ public class ExpenseController {
     }
 
     @GetMapping("/{groupId}/expenses/{expenseId}")
-    @Operation(summary = "Ver el detalle completo de un gasto y sus desgloses (HU-4.4)")
+    @Operation(
+        summary = "Ver el detalle completo de un gasto y sus desgloses (HU-4.4)",
+        description = "Devuelve los splits por usuario del gasto. Requiere ser miembro del grupo."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Detalle obtenido correctamente"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "403", description = "No eres miembro del grupo"),
+        @ApiResponse(responseCode = "404", description = "Grupo o gasto no encontrado")
+    })
     public ResponseEntity<ExpenseDetailResponse> getExpenseDetails(
             @PathVariable UUID groupId,
             @PathVariable UUID expenseId,
