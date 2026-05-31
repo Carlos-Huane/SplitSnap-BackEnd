@@ -8,6 +8,8 @@ import com.splitsnap.model.User;
 
 import com.splitsnap.service.ExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -35,7 +37,16 @@ public class ExpenseController {
     private final ExpenseService expenseService;
 
     @PostMapping("/{groupId}/expenses")
-    @Operation(summary = "Registrar un gasto manual en un grupo (SCRUM-96)")
+    @Operation(
+        summary = "Registrar un gasto manual en un grupo (SCRUM-96)",
+        description = "Registra un nuevo gasto dentro de un grupo y distribuye la deuda entre los participantes"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Gasto registrado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
     /**
      * @api {post} /api/groups/:groupId/expenses Registrar gasto
      * @apiName CreateExpense
@@ -56,7 +67,15 @@ public class ExpenseController {
     }
 
     @GetMapping("/{groupId}/expenses")
-    @Operation(summary = "Listar todos los gastos de un grupo ordenados por fecha (SCRUM-98)")
+    @Operation(
+        summary = "Listar todos los gastos de un grupo ordenados por fecha (SCRUM-98)",
+        description = "Obtiene todos los gastos registrados en un grupo específico"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Lista obtenida correctamente"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
     /**
      * @api {get} /api/groups/:groupId/expenses Listar gastos del grupo
      * @apiName GetExpensesByGroup
@@ -71,7 +90,15 @@ public class ExpenseController {
     }
 
     @GetMapping("/expenses/{expenseId}")
-    @Operation(summary = "Ver el detalle completo de un gasto y sus desgloses (SCRUM-99)")
+    @Operation(
+        summary = "Ver el detalle completo de un gasto y sus desgloses (SCRUM-99)",
+        description = "Obtiene toda la información asociada a un gasto específico"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Detalle obtenido correctamente"),
+        @ApiResponse(responseCode = "404", description = "Gasto no encontrado"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {get} /api/groups/expenses/:expenseId Detalle del gasto
      * @apiName GetExpenseDetails
@@ -86,7 +113,15 @@ public class ExpenseController {
     }  
     
     @PostMapping(value = "/expenses/ocr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Escanear y extraer datos de un recibo mediante OCR (SCRUM-100)")
+    @Operation(
+        summary = "Escanear y extraer datos de un recibo mediante OCR (SCRUM-100)",
+        description = "Procesa una imagen o PDF de recibo y extrae automáticamente los datos detectados"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Recibo procesado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Archivo inválido"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
     /**
      * @api {post} /api/groups/expenses/ocr Escanear recibo
      * @apiName UploadReceiptOcr
