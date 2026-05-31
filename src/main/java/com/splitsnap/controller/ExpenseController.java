@@ -6,6 +6,8 @@ import com.splitsnap.dto.expense.ExpenseResponse;
 import com.splitsnap.model.User;
 import com.splitsnap.service.ExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,7 +30,26 @@ public class ExpenseController {
     private final ExpenseService expenseService;
 
     @PostMapping("/{groupId}/expenses")
-    @Operation(summary = "Registrar un gasto manual en un grupo (HU-4.1)")
+    @Operation(
+        summary = "Registrar un gasto manual en un grupo (SCRUM-96)",
+        description = "Registra un nuevo gasto dentro de un grupo y distribuye la deuda entre los participantes"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Gasto registrado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
+        @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    /**
+     * @api {post} /api/groups/:groupId/expenses Registrar gasto
+     * @apiName CreateExpense
+     * @apiGroup Expenses
+     * @apiVersion 1.0.0
+     * @apiHeader {String} Authorization Bearer JWT.
+     * @apiParam {String} groupId ID del grupo.
+     * @apiParam {String} description Descripción del gasto.
+     * @apiParam {Number} amount Monto total.
+     */
     public ResponseEntity<ExpenseResponse> createExpense(
             @PathVariable UUID groupId,
             @Valid @RequestBody CreateExpenseRequest request,
