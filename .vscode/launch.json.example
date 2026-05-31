@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "SplitSnap Backend",
+            "request": "launch",
+            "mainClass": "com.splitsnap.SplitSnapApplication",
+            "projectName": "splitsnap-backend",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "SplitSnap API",
+  "version": "1.0.0",
+  "description": "Documentación estática del backend generada con apidoc.",
+  "title": "SplitSnap API Docs",
+  "url": "http://localhost:8080",
+  "sampleUrl": "http://localhost:8080",
+  "order": ["Auth", "Users", "Groups", "Expenses", "Credits", "Debts", "Transactions"]
+}
