@@ -22,14 +22,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.Feature;
 import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
+import com.google.cloud.vision.v1.ImageAnnotatorSettings;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -180,7 +186,7 @@ public class ExpenseService {
 
             String rawText = "";
 
-            try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
+            try (ImageAnnotatorClient client = createVisionClient()) {
                 List<AnnotateImageResponse> responses = client.batchAnnotateImages(requests).getResponsesList();
                 for (AnnotateImageResponse res : responses) {
                     if (res.hasError()) {
@@ -217,5 +223,27 @@ public class ExpenseService {
         if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) {
             throw new AccessDeniedException("No eres miembro de este grupo.");
         }
+    }
+
+    /**
+     * Construye el cliente de Google Cloud Vision soportando dos formas de credenciales:
+     *
+     *  1) Env var GOOGLE_APPLICATION_CREDENTIALS_JSON con el contenido completo del JSON
+     *     (recomendado para deploy en Railway/Render donde no hay file system persistente).
+     *  2) ADC clásico: env var GOOGLE_APPLICATION_CREDENTIALS apuntando a la ruta del archivo
+     *     (recomendado para desarrollo local).
+     */
+    private ImageAnnotatorClient createVisionClient() throws IOException {
+        String jsonContent = System.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON");
+        if (jsonContent != null && !jsonContent.isBlank()) {
+            try (ByteArrayInputStream stream = new ByteArrayInputStream(jsonContent.getBytes(StandardCharsets.UTF_8))) {
+                GoogleCredentials credentials = GoogleCredentials.fromStream(stream);
+                ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
+                        .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+                        .build();
+                return ImageAnnotatorClient.create(settings);
+            }
+        }
+        return ImageAnnotatorClient.create();
     }
 }
