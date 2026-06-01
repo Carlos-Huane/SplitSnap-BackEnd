@@ -201,8 +201,20 @@ public class ExpenseService {
             // "TOTAL", "TOTAL A PAGAR", "IMPORTE TOTAL", "MONTO TOTAL",
             // "SUBTOTAL", "NETO", "PAGO", "IMPORTE". Cubrimos todas las
             // variantes y aceptamos espacios/S/ entre la palabra y el monto.
+            //
+            // El monto se busca con LOOKAHEAD (?= ... ) para que el matcher
+            // solo consuma la keyword. Sin lookahead, un match de
+            // "OP. GRAVADAS ... 99.50" se comeria el texto que contiene
+            // "IMPORTE TOTAL" en medio y nunca lo encontrariamos como match
+            // separado de mayor prioridad.
+            //
+            // Ventana de 250 caracteres entre keyword y monto porque Google
+            // Vision suele leer columnas izquierda/derecha de boletas como
+            // bloques separados: las palabras "IMPORTE TOTAL" aparecen
+            // agrupadas con OP GRAVADAS / IGV, y los montos numericos vienen
+            // varias lineas despues como bloque aparte.
             Pattern pattern = Pattern.compile(
-                    "(?i)\\b(precio\\s+venta|valor\\s+venta|gran\\s+total|total(?:\\s+a\\s+pagar)?|importe(?:\\s+total)?|monto\\s+total|por\\s+pagar|op\\.?\\s*gravadas?|subtotal|neto|pago)\\b[\\s\\S]{0,30}?(\\d{1,7}[.,]\\d{2})"
+                    "(?i)\\b(precio\\s+venta|valor\\s+venta|gran\\s+total|total(?:\\s+a\\s+pagar)?|importe(?:\\s+total)?|monto\\s+total|por\\s+pagar|op\\.?\\s*gravadas?|subtotal|neto|pago)\\b(?=[\\s\\S]{0,250}?(\\d{1,7}[.,]\\d{2}))"
             );
             // Prioridad: "precio venta" / "total a pagar" cierran el ticket SUNAT.
             // "op gravadas" es subtotal sin IGV (prioridad muy baja).
