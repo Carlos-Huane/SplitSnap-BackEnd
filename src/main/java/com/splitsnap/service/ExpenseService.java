@@ -32,6 +32,8 @@ import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.cloud.vision.v1.ImageAnnotatorSettings;
 
+import jakarta.annotation.PreDestroy;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -48,6 +50,11 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class ExpenseService {
+
+    // Cliente Vision cacheado: crearlo desde cero en cada request es caro
+    // (carga gRPC + Protobuf + auth libs) y contribuia al OOM en Railway.
+    // Se inicializa lazy en el primer scan y se reutiliza despues.
+    private volatile ImageAnnotatorClient visionClient;
 
     private final ExpenseRepository expenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
@@ -172,8 +179,11 @@ public class ExpenseService {
         }
 
         try {
-            byte[] imgBytes = file.getBytes();
-            ByteString imgByteString = ByteString.copyFrom(imgBytes);
+            // Leer la imagen directamente al ByteString evita una copia
+            // intermedia en byte[] (antes habia 2 copias en heap: file.getBytes()
+            // + ByteString.copyFrom). Con imagenes de 2MB cada copia extra
+            // empujaba la JVM hacia OOM en el plan free de Railway (512MB).
+            ByteString imgByteString = ByteString.readFrom(file.getInputStream());
             Image img = Image.newBuilder().setContent(imgByteString).build();
 
             Feature feat = Feature.newBuilder().setType(Type.TEXT_DETECTION).build();
@@ -187,14 +197,16 @@ public class ExpenseService {
 
             String rawText = "";
 
-            try (ImageAnnotatorClient client = createVisionClient()) {
-                List<AnnotateImageResponse> responses = client.batchAnnotateImages(requests).getResponsesList();
-                for (AnnotateImageResponse res : responses) {
-                    if (res.hasError()) {
-                        throw new BusinessException("Error de Google Vision: " + res.getError().getMessage());
-                    }
-                    rawText = res.getTextAnnotationsList().get(0).getDescription();
+            // Reusamos el cliente cacheado en lugar de crear uno por request.
+            // No usamos try-with-resources aqui porque el cliente vive todo el
+            // ciclo de vida del bean (se cierra en @PreDestroy).
+            ImageAnnotatorClient client = getOrCreateVisionClient();
+            List<AnnotateImageResponse> responses = client.batchAnnotateImages(requests).getResponsesList();
+            for (AnnotateImageResponse res : responses) {
+                if (res.hasError()) {
+                    throw new BusinessException("Error de Google Vision: " + res.getError().getMessage());
                 }
+                rawText = res.getTextAnnotationsList().get(0).getDescription();
             }
 
             // Boletas SUNAT peruanas usan: "PRECIO VENTA", "VALOR VENTA",
@@ -278,6 +290,29 @@ public class ExpenseService {
     }
 
     /**
+     * Devuelve el cliente Vision cacheado. Lo crea con double-checked locking
+     * en el primer request OCR y lo reutiliza despues. Si la creacion fallo en
+     * un intento previo (campo null), un proximo request lo reintenta.
+     *
+     * Crear el cliente es caro (carga gRPC, Protobuf, auth libs y abre canal
+     * HTTP/2) y antes era el principal contribuyente al OOM porque se hacia
+     * en cada request OCR.
+     */
+    private ImageAnnotatorClient getOrCreateVisionClient() throws IOException {
+        ImageAnnotatorClient local = visionClient;
+        if (local == null) {
+            synchronized (this) {
+                local = visionClient;
+                if (local == null) {
+                    local = createVisionClient();
+                    visionClient = local;
+                }
+            }
+        }
+        return local;
+    }
+
+    /**
      * Construye el cliente de Google Cloud Vision soportando dos formas de credenciales:
      *
      *  1) Env var GOOGLE_APPLICATION_CREDENTIALS_JSON con el contenido completo del JSON
@@ -297,5 +332,20 @@ public class ExpenseService {
             }
         }
         return ImageAnnotatorClient.create();
+    }
+
+    /**
+     * Cierra el cliente Vision cuando el bean se destruye (apagado del app).
+     * Esto libera el canal gRPC y los recursos asociados.
+     */
+    @PreDestroy
+    public void shutdownVisionClient() {
+        if (visionClient != null) {
+            try {
+                visionClient.close();
+            } catch (Exception ignored) {
+                // Mejor esfuerzo: si falla el cierre, el JVM apaga el proceso igual.
+            }
+        }
     }
 }
