@@ -38,6 +38,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -196,22 +197,61 @@ public class ExpenseService {
                 }
             }
 
+            // Boletas SUNAT peruanas usan: "PRECIO VENTA", "VALOR VENTA",
+            // "TOTAL", "TOTAL A PAGAR", "IMPORTE TOTAL", "MONTO TOTAL",
+            // "SUBTOTAL", "NETO", "PAGO", "IMPORTE". Cubrimos todas las
+            // variantes y aceptamos espacios/S/ entre la palabra y el monto.
+            Pattern pattern = Pattern.compile(
+                    "(?i)\\b(precio\\s+venta|valor\\s+venta|gran\\s+total|total(?:\\s+a\\s+pagar)?|importe(?:\\s+total)?|monto\\s+total|por\\s+pagar|op\\.?\\s*gravadas?|subtotal|neto|pago)\\b[\\s\\S]{0,30}?(\\d{1,7}[.,]\\d{2})"
+            );
+            // Prioridad: "precio venta" / "total a pagar" cierran el ticket SUNAT.
+            // "op gravadas" es subtotal sin IGV (prioridad muy baja).
+            String[] priority = { "precio venta", "total a pagar", "por pagar", "gran total",
+                                  "total", "monto total", "importe total", "valor venta",
+                                  "importe", "neto", "pago", "subtotal", "op gravadas",
+                                  "op. gravadas", "op gravada", "op. gravada" };
             Double detectedAmount = 0.0;
-            Pattern pattern = Pattern.compile("(?i)(total|neto|pago)[\\s\\S]*?(\\d+([.,]\\d{2}))");
+            int bestPriority = Integer.MAX_VALUE;
+            String matchedKeyword = null;
             Matcher matcher = pattern.matcher(rawText);
-            if (matcher.find()) {
-                String amountStr = matcher.group(2).replace(",", ".");
-                detectedAmount = Double.parseDouble(amountStr);
+            while (matcher.find()) {
+                try {
+                    double val = Double.parseDouble(matcher.group(2).replace(",", "."));
+                    String kw = matcher.group(1).toLowerCase().replaceAll("\\s+", " ").trim();
+                    int prio = priority.length;
+                    for (int i = 0; i < priority.length; i++) {
+                        if (kw.equals(priority[i])) { prio = i; break; }
+                    }
+                    // Mejor prioridad gana. A igual prioridad nos quedamos con el mayor monto
+                    // (algunos tickets repiten el total varias veces y queremos el numero real).
+                    if (prio < bestPriority || (prio == bestPriority && val > detectedAmount)) {
+                        bestPriority = prio;
+                        detectedAmount = val;
+                        matchedKeyword = kw;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // saltamos matches no parseables
+                }
             }
 
-            String[] lines = rawText.split("\n");
-            String detectedDescription = (lines.length > 0) ? lines[0].trim() : "Gasto Escaneado OCR";
+            // extractedItems: devolvemos las lineas completas del recibo (sin truncar)
+            // para que el front pueda mostrar el texto OCR completo en el detalle.
+            List<String> extractedLines = Arrays.stream(rawText.split("\\r?\\n"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+
+            String detectedDescription = extractedLines.isEmpty()
+                    ? "Gasto Escaneado OCR"
+                    : extractedLines.get(0);
 
             return OcrResponse.builder()
                     .description("Escaneo: " + detectedDescription)
                     .detectedAmount(detectedAmount)
-                    .confidenceScore(detectedAmount > 0 ? "extracted" : "fallback")
-                    .extractedItems(List.of(rawText.length() > 50 ? rawText.substring(0, 50) + "..." : rawText))
+                    .confidenceScore(detectedAmount > 0
+                            ? (matchedKeyword != null ? matchedKeyword : "extracted")
+                            : "fallback")
+                    .extractedItems(extractedLines)
                     .build();
 
         } catch (Exception e) {
