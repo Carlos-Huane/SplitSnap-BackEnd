@@ -82,6 +82,24 @@ public class UserService {
         return avatarUrl;
     }
 
+    public void deleteAvatar(UUID userId) {
+        User user = findById(userId);
+        if (user.getAvatarUrl() != null) {
+            try {
+                String relativePath = user.getAvatarUrl();
+                if (relativePath.startsWith("/")) {
+                    relativePath = relativePath.substring(1);
+                }
+                Path path = Paths.get(relativePath);
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                // Ignore or log error
+            }
+            user.setAvatarUrl(null);
+            userRepository.save(user);
+        }
+    }
+
     public List<UserResponse> search(String query, UUID excludeId) {
         if (query == null || query.trim().length() < 2) {
             throw new BusinessException("Ingresa al menos 2 caracteres para buscar");

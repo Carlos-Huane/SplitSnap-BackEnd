@@ -106,6 +106,20 @@ public class UserController {
         return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl));
     }
 
+    @DeleteMapping("/me/avatar")
+    @Operation(
+        summary = "Eliminar foto de perfil",
+        description = "Elimina el avatar del usuario autenticado"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Avatar eliminado correctamente"),
+        @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
+    })
+    public ResponseEntity<Void> deleteAvatar(@AuthenticationPrincipal User user) {
+        userService.deleteAvatar(user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/search")
     @Operation(
         summary = "Buscar usuarios por nombre o email",
